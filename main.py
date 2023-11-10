@@ -33,6 +33,12 @@ class FunctionInputs(AutomateBase):
             "Radius from the Model location," " derived from Revit model lat, lon."
         ),
     )
+    generate_image: bool = Field(
+        title="Generate a 2d map",
+        description=(
+            "Enable or disable generation of 2d map, in addition to the 3d model"
+        ),
+    )
 
 
 def automate_function(
@@ -113,8 +119,9 @@ def automate_function(
         )
 
         # create and add a basemap png file
-        path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
-        automate_context.store_file_result(path)
+        if function_inputs.generate_image is True:
+            path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
+            automate_context.store_file_result(path)
 
         automate_context.mark_run_success("Created 3D context")
     except Exception as ex:
