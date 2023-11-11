@@ -15,6 +15,7 @@ from specklepy.objects.other import Collection
 from utils.utils_osm import get_buildings, get_roads
 from utils.utils_other import RESULT_BRANCH
 from utils.utils_png import create_image_from_bbox
+from utils.utils_server import query_version_info
 
 
 class FunctionInputs(AutomateBase):
@@ -56,11 +57,12 @@ def automate_function(
     """
     # the context provides a conveniet way, to receive the triggering version
     try:
-        base = automate_context.receive_version()
 
-        projInfo = base["info"]
+        projInfo = query_version_info(automate_context)
         if not projInfo.speckle_type.endswith("Revit.ProjectInfo"):
-            automate_context.mark_run_failed("Not a valid 'Revit.ProjectInfo' provided")
+            automate_context.mark_run_failed(
+                "Not a valid 'Revit.ProjectInfo' provided"
+            )
 
         lon = np.rad2deg(projInfo["longitude"])
         lat = np.rad2deg(projInfo["latitude"])
@@ -86,6 +88,7 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
+        r'''
         roads_line_layer = Collection(
             elements=roads_lines,
             units="m",
@@ -94,6 +97,7 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
+        '''
         roads_mesh_layer = Collection(
             elements=roads_meshes,
             units="m",
@@ -105,7 +109,7 @@ def automate_function(
 
         # add layers to a commit Collection object
         commit_obj = Collection(
-            elements=[building_layer, roads_line_layer, roads_mesh_layer],
+            elements=[building_layer, roads_mesh_layer],
             units="m",
             name="Context",
             collectionType="ContextLayer",

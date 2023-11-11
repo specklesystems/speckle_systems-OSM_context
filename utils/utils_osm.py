@@ -150,11 +150,26 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
             for k, z in enumerate(ways_part):
                 if k == len(ways_part):
                     break
+
                 if rel_outer_ways[n][m]["ref"] == ways_part[k]["id"]:
-                    full_node_list += ways_part[k]["nodes"]
+                    # reverse way part is needed
+                    node_list = ways_part[k]["nodes"].copy()
+                    if (
+                        len(full_node_list) > 0
+                        and full_node_list[len(full_node_list) - 1] != node_list[0]
+                    ):
+                        node_list.reverse()
+                    node_list = [
+                        n
+                        for j, n in enumerate(node_list)
+                        if (n not in full_node_list or j == len(node_list) - 1)
+                    ]
+
+                    full_node_list += node_list
                     ways_part.pop(k)  # remove used ways_parts
                     k -= 1  # reset index
                     break
+        
         for m, y in enumerate(rel_inner_ways[n]):
             # find ways_parts with corresponding ID
             local_node_list = []
@@ -162,7 +177,15 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                 if k == len(ways_part):
                     break
                 if rel_inner_ways[n][m]["ref"] == ways_part[k]["id"]:
-                    local_node_list += ways_part[k]["nodes"]
+                    # reverse way part is needed
+                    node_list = ways_part[k]["nodes"].copy()
+                    if (
+                        len(local_node_list) > 0
+                        and local_node_list[len(local_node_list) - 1] != node_list[0]
+                    ):
+                        node_list.reverse()
+
+                    local_node_list += node_list  # ways_part[k]["nodes"]
                     ways_part.pop(k)  # remove used ways_parts
                     k -= 1  # reset index
                     break
