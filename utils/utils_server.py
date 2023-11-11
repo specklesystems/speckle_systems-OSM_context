@@ -1,5 +1,6 @@
 from specklepy.api.wrapper import StreamWrapper
 from gql import gql
+from specklepy.logging.exceptions import SpeckleException
 
 
 def query_version_info(automate_context):
@@ -49,5 +50,7 @@ def query_version_info(automate_context):
     except KeyError:
         base = automate_context.receive_version()
         projInfo = base["info"]
+        if not projInfo.speckle_type.endswith("Revit.ProjectInfo"):
+            raise SpeckleException("Not a valid 'Revit.ProjectInfo' provided")
 
     return projInfo
