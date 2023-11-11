@@ -1,7 +1,6 @@
-
-
 from specklepy.api.wrapper import StreamWrapper
 from gql import gql
+
 
 def query_version_info(automate_context):
     automation_run_data = automate_context.automation_run_data
@@ -19,10 +18,7 @@ def query_version_info(automate_context):
         }
     """
     )
-    sw = StreamWrapper(
-        f"{automation_run_data.speckle_server_url}/projects/{automation_run_data.project_id}"
-    )
-    client = sw.get_client()
+    client = automate_context.speckle_client
     params = {
         "project_id": automation_run_data.project_id,
         "model_id": automation_run_data.model_id,

@@ -57,12 +57,9 @@ def automate_function(
     """
     # the context provides a conveniet way, to receive the triggering version
     try:
-
         projInfo = query_version_info(automate_context)
         if not projInfo.speckle_type.endswith("Revit.ProjectInfo"):
-            automate_context.mark_run_failed(
-                "Not a valid 'Revit.ProjectInfo' provided"
-            )
+            automate_context.mark_run_failed("Not a valid 'Revit.ProjectInfo' provided")
 
         lon = np.rad2deg(projInfo["longitude"])
         lat = np.rad2deg(projInfo["latitude"])
@@ -88,7 +85,7 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
-        r'''
+        r"""
         roads_line_layer = Collection(
             elements=roads_lines,
             units="m",
@@ -97,7 +94,7 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
-        '''
+        """
         roads_mesh_layer = Collection(
             elements=roads_meshes,
             units="m",
