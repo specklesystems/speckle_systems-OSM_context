@@ -58,9 +58,6 @@ def automate_function(
     # the context provides a conveniet way, to receive the triggering version
     try:
         projInfo = query_version_info(automate_context)
-        if not projInfo.speckle_type.endswith("Revit.ProjectInfo"):
-            automate_context.mark_run_failed("Not a valid 'Revit.ProjectInfo' provided")
-
         lon = np.rad2deg(projInfo["longitude"])
         lat = np.rad2deg(projInfo["latitude"])
         try:
