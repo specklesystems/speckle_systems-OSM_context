@@ -272,6 +272,18 @@ def extrude_building(
     coords: list[dict], coords_inner: list[list[dict]], height: float
 ) -> Mesh:
     """Create a 3d Mesh from the lists of outer and inner coords and height."""
+
+    if len(coords) < 3:
+        return None
+    if len(coords_inner)==0:
+        return extrude_building_simple(coords, coords_inner, height)
+    else: 
+        return extrude_building_complex(coords, coords_inner, height)
+
+def extrude_building_complex(
+    coords: list[dict], coords_inner: list[list[dict]], height: float
+) -> Mesh:
+    """Create a 3d Mesh from the lists of outer and inner coords and height."""
     vertices = []
     faces = []
     colors = []

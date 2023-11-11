@@ -166,10 +166,11 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                     ]
 
                     full_node_list += node_list
-                    ways_part.pop(k)  # remove used ways_parts
+                    item = ways_part.pop(k)  # remove used ways_parts
+                    ways_part.append(item)
                     k -= 1  # reset index
                     break
-        
+
         for m, y in enumerate(rel_inner_ways[n]):
             # find ways_parts with corresponding ID
             local_node_list = []
@@ -186,7 +187,8 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                         node_list.reverse()
 
                     local_node_list += node_list  # ways_part[k]["nodes"]
-                    ways_part.pop(k)  # remove used ways_parts
+                    item = ways_part.pop(k)  # remove used ways_parts
+                    ways_part.append(item)
                     k -= 1  # reset index
                     break
             full_node_inner_list.append(local_node_list)
