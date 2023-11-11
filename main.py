@@ -88,6 +88,7 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
+        r'''
         roads_line_layer = Collection(
             elements=roads_lines,
             units="m",
@@ -96,6 +97,7 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
+        '''
         roads_mesh_layer = Collection(
             elements=roads_meshes,
             units="m",
@@ -107,7 +109,7 @@ def automate_function(
 
         # add layers to a commit Collection object
         commit_obj = Collection(
-            elements=[building_layer, roads_line_layer, roads_mesh_layer],
+            elements=[building_layer, roads_mesh_layer],
             units="m",
             name="Context",
             collectionType="ContextLayer",
