@@ -87,6 +87,8 @@ def automate_function(
         building_layer = Collection(
             elements=building_base_objects,
             units="m",
+            latitude=lat,
+            longitude=lon,
             name="Context: Buildings",
             collectionType="BuildingsMeshesLayer",
             source_data="© OpenStreetMap",
@@ -96,6 +98,8 @@ def automate_function(
         roads_line_layer = Collection(
             elements=roads_lines,
             units="m",
+            latitude=lat,
+            longitude=lon,
             name="Context: Roads (Polylines)",
             collectionType="RoadPolyinesLayer",
             source_data="© OpenStreetMap",
@@ -105,6 +109,8 @@ def automate_function(
         roads_mesh_layer = Collection(
             elements=roads_meshes,
             units="m",
+            latitude=lat,
+            longitude=lon,
             name="Context: Roads (Meshes)",
             collectionType="RoadMeshesLayer",
             source_data="© OpenStreetMap",
@@ -113,6 +119,8 @@ def automate_function(
         nature_layer = Collection(
             elements=nature_base_objects,
             units="m",
+            latitude=lat,
+            longitude=lon,
             name="Context: Nature",
             collectionType="NatureMeshesLayer",
             source_data="© OpenStreetMap",
@@ -123,6 +131,8 @@ def automate_function(
         commit_obj = Collection(
             elements=[building_layer, roads_mesh_layer, nature_layer],
             units="m",
+            latitude=lat,
+            longitude=lon,
             name="Context",
             collectionType="ContextLayer",
             source_data="© OpenStreetMap",
