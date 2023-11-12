@@ -158,7 +158,7 @@ def automate_function_without_inputs(automate_context: AutomationContext) -> Non
 
 
 # make sure to call the function with the executor
-if __name__ == "__main__11":
+if __name__ == "__main__":
     # NOTE: always pass in the automate function by its reference, do not invoke it!
 
     # pass in the function reference with the inputs schema to the executor
@@ -166,54 +166,3 @@ if __name__ == "__main__11":
 
     # if the function has no arguments, the executor can handle it like so
     # execute_automate_function(automate_function_without_inputs)
-
-from specklepy.api.credentials import get_local_accounts
-from specklepy.core.api.client import SpeckleClient
-from speckle_automate.schema import AutomationRunData
-from specklepy.transports.server import ServerTransport
-from specklepy.api.models import Branch
-from pydantic import BaseModel, ConfigDict, Field
-from stringcase import camelcase
-
-project_id = "23c31c18f5"  # "aeb6aa8a6c"
-model_id = "3080ebb3c8"
-radius_in_meters = 200
-
-# get client
-account = get_local_accounts()[1]
-client = SpeckleClient(account.serverInfo.url)
-client.authenticate_with_token(account.token)
-speckle_client: SpeckleClient = client
-server_transport = ServerTransport(project_id, client)
-
-branch: Branch = client.branch.get(project_id, model_id, 1)
-version_id = branch.commits.items[0].id
-
-# create automation run data
-automation_run_data = AutomationRunData(
-    project_id=project_id,
-    model_id=model_id,  # "02e4c63027",
-    branch_name="main",
-    version_id=version_id,  # "c26b96d649",  # "33e62b9536",
-    speckle_server_url=account.serverInfo.url,
-    automation_id="",
-    automation_revision_id="",
-    automation_run_id="",
-    function_id="",
-    function_name="function_name",
-    function_logo="",
-    model_config=ConfigDict(
-        alias_generator=camelcase, populate_by_name=True, protected_namespaces=()
-    ),
-)
-
-# initialize Automate variables
-automate_context = AutomationContext(
-    automation_run_data, speckle_client, server_transport, account.token
-)
-function_inputs = FunctionInputs(
-    radius_in_meters=radius_in_meters, include_nature=True, generate_image=False
-)
-
-# execute_automate_function(automate_function, FunctionInputs)
-automate_function(automate_context, function_inputs)
