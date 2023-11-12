@@ -1,5 +1,6 @@
 import json
 import math
+import random
 from copy import copy
 
 import geopandas as gpd
@@ -7,14 +8,21 @@ import numpy as np
 from geovoronoi import voronoi_regions_from_coords
 from shapely import (
     LineString,
-    Polygon,
     buffer,
     to_geojson,
 )
+from shapely import (
+    Point as shapely_Point,
+)
+from shapely import (
+    Polygon as shapely_Polygon,
+)
+from shapely.affinity import affine_transform
 from shapely.ops import triangulate
 from specklepy.objects import Base
 from specklepy.objects.geometry import Mesh, Point, Polyline
 
+from assets.trees import COLORS, FACES, TEXTURE_COORDS, VERTICES
 from utils.utils_other import (
     COLOR_BLD,
     COLOR_ROAD,
@@ -128,10 +136,11 @@ def to_triangles(
 
         # check if sufficient holes vertices were added
         if len(holes) == 1 and len(holes[0]) == 0:
-            polygon = Polygon([(v[0], v[1]) for v in vert])
+            polygon = shapely_Polygon([(v[0], v[1]) for v in vert])
         else:
-            polygon = Polygon([(v[0], v[1]) for v in vert], holes)
+            polygon = shapely_Polygon([(v[0], v[1]) for v in vert], holes)
 
+        # exterior_linearring = polygon.exterior
         try:
             exterior_linearring = polygon.buffer(-0.001).exterior
         except AttributeError:
@@ -152,9 +161,7 @@ def to_triangles(
             [item for sublist in poly_points for item in sublist]
         ).reshape(-1, 2)
 
-        poly_shapes, _ = voronoi_regions_from_coords(
-            poly_points, polygon.buffer(0)
-        )
+        poly_shapes, _ = voronoi_regions_from_coords(poly_points, polygon.buffer(0))
         gdf_poly_voronoi = (
             gpd.GeoDataFrame({"geometry": poly_shapes})
             .explode(index_parts=True)
@@ -209,6 +216,35 @@ def rotate_pt(coord: dict, angle: float) -> dict:
     return {"x": x2, "y": y2}
 
 
+def create_flat_mesh(coords: list[dict], color=None) -> Mesh:
+    """Create a polygon facing up, no voids."""
+
+    if len(coords) < 3:
+        return None
+    vertices = []
+    faces = []
+    colors = []
+    if color is None:  # apply green
+        color = (255 << 24) + (20 << 16) + (50 << 8) + 10  # argb
+
+    # bottom
+    bottom_vert_indices = list(range(len(coords)))
+    bottom_vertices = [[c["x"], c["y"]] for c in coords]
+    bottom_vert_indices, clockwise_orientation = fix_orientation(
+        bottom_vertices, bottom_vert_indices
+    )
+    bottom_vert_indices.reverse()
+
+    for c in coords:
+        vertices.extend([c["x"], c["y"], 0])
+        colors.append(color)
+    faces.extend([len(coords)] + bottom_vert_indices)
+
+    obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
+    obj.units = "m"
+
+    return obj
+
 
 def extrude_building_simple(
     coords: list[dict], coords_inner: list[list[dict]], height: float
@@ -223,7 +259,7 @@ def extrude_building_simple(
 
     if len(coords) < 3:
         return None
-    
+
     # bottom
     bottom_vert_indices = list(range(len(coords)))
     bottom_vertices = [[c["x"], c["y"]] for c in coords]
@@ -275,15 +311,17 @@ def extrude_building(
 
     if len(coords) < 3:
         return None
-    if len(coords_inner)==0:
+    if len(coords_inner) == 0:
         return extrude_building_simple(coords, coords_inner, height)
-    else: 
+    else:
         return extrude_building_complex(coords, coords_inner, height)
+
 
 def extrude_building_complex(
     coords: list[dict], coords_inner: list[list[dict]], height: float
 ) -> Mesh:
     """Create a 3d Mesh from the lists of outer and inner coords and height."""
+
     vertices = []
     faces = []
     colors = []
@@ -292,7 +330,6 @@ def extrude_building_complex(
 
     if len(coords) < 3:
         return None
-
     # bottom
     try:
         total_vertices = 0
@@ -317,9 +354,7 @@ def extrude_building_complex(
 
         # all faces are counter-clockwise now (facing up)
         # therefore, add vertices in the reverse (clockwise) order (facing down)
-        faces.extend(
-            [3, total_vertices - 1, total_vertices - 2, total_vertices - 3]
-        )
+        faces.extend([3, total_vertices - 1, total_vertices - 2, total_vertices - 3])
 
     # top
     pt_list = [[p[0], p[1], height] for p in triangulated_geom["vertices"]]
@@ -332,9 +367,7 @@ def extrude_building_complex(
         vertices.extend(pt_list[a] + pt_list[b] + pt_list[c])
         colors.extend([color, color, color])
         total_vertices += 3
-        faces.extend(
-            [3, total_vertices - 3, total_vertices - 2, total_vertices - 1]
-        )
+        faces.extend([3, total_vertices - 3, total_vertices - 2, total_vertices - 1])
 
     # sides
     bottom_vert_indices = list(range(len(coords)))
@@ -385,14 +418,13 @@ def extrude_building_complex(
             colors.extend([color, color, color, color])
             total_vertices += 4
 
-
     obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
     obj.units = "m"
 
     return obj
 
 
-def road_buffer(poly: Polyline, value: float) -> Base:
+def road_buffer(poly: Polyline, value: float, elevation: float = 0.01) -> Base:
     """Creage a Mesh from Polyline and buffer value."""
     if value is None:
         return
@@ -407,7 +439,7 @@ def road_buffer(poly: Polyline, value: float) -> Base:
 
     for i, c in enumerate(area["coordinates"][0]):
         if i != len(area["coordinates"][0]) - 1:
-            vertices.extend(c + [0])
+            vertices.extend(c + [0 + elevation])
             vetricesTuples.append(c)
             colors.append(color)
 
@@ -445,7 +477,8 @@ def split_ways_by_intersection(ways: list[dict], tags: list[dict]) -> tuple[list
         except:
             pass
 
-        if len(list(set(ids))) < len(ids):  # if there are repetitions
+        x = set(ids)
+        if len(ids) == 0 or len(list(set(ids))) < len(ids):  # if there are repetitions
             wList = fill_list(ids, [])
             for item in wList:
                 x = copy(w)
@@ -469,7 +502,64 @@ def join_roads(coords: list[dict], closed: bool, height: float) -> Polyline:
     poly = Polyline.from_points(points)
     poly.closed = closed
     poly.units = "m"
-    poly.source_data="© OpenStreetMap",
-    poly.source_url="https://www.openstreetmap.org/",
+    poly.source_data = "© OpenStreetMap"
+    poly.source_url = "https://www.openstreetmap.org/"
 
     return poly
+
+
+def generate_tree(tree: dict, coords: dict) -> Mesh():
+    """Create a 3d tree in a given location."""
+    obj = None
+    scale = random.randint(80, 140) / 100
+    scale_z = random.randint(80, 140) / 100
+    if tree["id"] == "forest":
+        scale *= 2
+        scale_z *= 2
+    angle_rad = random.randint(-200, 200) / 100
+    try:
+        vertices = []
+        for i in range(int(len(VERTICES) / 3)):
+            xy = rotate_pt(
+                {"x": VERTICES[3 * i] * scale, "y": VERTICES[3 * i + 1] * scale},
+                angle_rad,
+            )
+            vertices.append(xy["x"] + coords["x"])
+            vertices.append(xy["y"] + coords["y"])
+            vertices.append(VERTICES[3 * i + 2] * scale_z)
+
+        obj = Mesh.create(
+            faces=FACES,
+            vertices=vertices,
+            colors=COLORS,
+            texture_coordinates=TEXTURE_COORDS,
+        )
+        obj.units = "m"
+    except Exception as e:
+        pass
+
+    return obj
+
+
+def generate_points_inside_polygon(polygon_pts: list[tuple], point_number: int = 3):
+    """Populate polygon with points."""
+    # https://codereview.stackexchange.com/questions/69833/generate-sample-coordinates-inside-a-polygon
+
+    polygon = shapely_Polygon(polygon_pts)
+    areas = []
+    transforms = []
+    for t in triangulate(polygon):
+        areas.append(t.area)
+        (x0, y0), (x1, y1), (x2, y2), _ = t.exterior.coords
+        transforms.append([x1 - x0, x2 - x0, y2 - y0, y1 - y0, x0, y0])
+    points = []
+    for transform in random.choices(transforms, weights=areas, k=point_number):
+        x, y = [random.random() for _ in range(2)]
+        if x + y > 1:
+            p = shapely_Point(1 - x, 1 - y)
+        else:
+            p = shapely_Point(x, y)
+        points.append(affine_transform(p, transform))
+    coords = np.array([p.coords for p in points]).reshape(-1, 2)
+    coords = [p.coords[0] for p in points]
+    return coords

@@ -12,7 +12,7 @@ from speckle_automate import (
 )
 from specklepy.objects.other import Collection
 
-from utils.utils_osm import get_buildings, get_roads
+from utils.utils_osm import get_buildings, get_nature, get_roads
 from utils.utils_other import RESULT_BRANCH
 from utils.utils_png import create_image_from_bbox
 from utils.utils_server import query_version_info
@@ -33,6 +33,10 @@ class FunctionInputs(AutomateBase):
         description=(
             "Radius from the Model location," " derived from Revit model lat, lon."
         ),
+    )
+    include_nature: bool = Field(
+        title="Include natural elements",
+        description=("Include natural elements (grass, trees etc.)"),
     )
     generate_image: bool = Field(
         title="Generate a 2d map",
@@ -72,6 +76,12 @@ def automate_function(
         roads_lines, roads_meshes = get_roads(
             lat, lon, function_inputs.radius_in_meters, angle_rad
         )
+        if function_inputs.include_nature is True:
+            nature_base_objects = get_nature(
+                lat, lon, function_inputs.radius_in_meters, angle_rad
+            )
+        else:
+            nature_base_objects = []
 
         # create layers for buildings and roads
         building_layer = Collection(
@@ -100,10 +110,18 @@ def automate_function(
             source_data="© OpenStreetMap",
             source_url="https://www.openstreetmap.org/",
         )
+        nature_layer = Collection(
+            elements=nature_base_objects,
+            units="m",
+            name="Context: Nature",
+            collectionType="NatureMeshesLayer",
+            source_data="© OpenStreetMap",
+            source_url="https://www.openstreetmap.org/",
+        )
 
         # add layers to a commit Collection object
         commit_obj = Collection(
-            elements=[building_layer, roads_mesh_layer],
+            elements=[building_layer, roads_mesh_layer, nature_layer],
             units="m",
             name="Context",
             collectionType="ContextLayer",
@@ -121,9 +139,9 @@ def automate_function(
             path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
             automate_context.store_file_result(path)
 
-        automate_context.set_context_view(
-            [automate_context.automation_run_data.model_id, new_model_id]
-        )
+        # automate_context.set_context_view(
+        #    resource_ids=[automate_context.automation_run_data.model_id, new_model_id]
+        # )
         automate_context.mark_run_success("Created 3D context")
     except Exception as ex:
         automate_context.mark_run_failed(f"Failed to create 3d context cause: {ex}")
