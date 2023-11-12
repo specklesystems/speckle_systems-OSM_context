@@ -112,7 +112,7 @@ def automate_function(
         )
 
         # create a commit
-        automate_context.create_new_version_in_project(
+        new_model_id, _ = automate_context.create_new_version_in_project(
             commit_obj, RESULT_BRANCH, "Context from Automate"
         )
 
@@ -121,6 +121,9 @@ def automate_function(
             path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
             automate_context.store_file_result(path)
 
+        automate_context.set_context_view(
+            [automate_context.automation_run_data.model_id, new_model_id]
+        )
         automate_context.mark_run_success("Created 3D context")
     except Exception as ex:
         automate_context.mark_run_failed(f"Failed to create 3d context cause: {ex}")
@@ -145,5 +148,3 @@ if __name__ == "__main__":
 
     # if the function has no arguments, the executor can handle it like so
     # execute_automate_function(automate_function_without_inputs)
-
-
