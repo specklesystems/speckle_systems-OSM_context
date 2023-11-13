@@ -513,7 +513,7 @@ def generate_tree(tree: dict, coords: dict) -> Mesh():
     """Create a 3d tree in a given location."""
     obj = None
     tree_base = None
-    tree_base2 = None
+    tree_base_top = None
     scale = random.randint(80, 140) / 100
     scale_z = random.randint(80, 140) / 100
     if tree["id"] == "forest":
@@ -539,39 +539,40 @@ def generate_tree(tree: dict, coords: dict) -> Mesh():
         )
         obj.units = "m"
 
-        # generate base top
-        color = COLOR_TREE_BASE
-        vertices = []
-        colors = []
-        border_pt = {"x": 0.9, "y": 0}
-        steps = 12
-        for s in range(steps):
-            k = -1 * s / steps
-            new_pt = rotate_pt(border_pt, 2 * math.pi * k)
-            colors.append(color)
-            vertices.extend(
-                [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.02]
-            )
-        faces = [steps] + list(range(steps))
-        tree_base_top = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-        tree_base_top.units = "m"
+        if tree["id"] != "forest":
+            # generate base top
+            color = COLOR_TREE_BASE
+            vertices = []
+            colors = []
+            border_pt = {"x": 0.9, "y": 0}
+            steps = 12
+            for s in range(steps):
+                k = -1 * s / steps
+                new_pt = rotate_pt(border_pt, 2 * math.pi * k)
+                colors.append(color)
+                vertices.extend(
+                    [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.02]
+                )
+            faces = [steps] + list(range(steps))
+            tree_base_top = Mesh.create(faces=faces, vertices=vertices, colors=colors)
+            tree_base_top.units = "m"
 
-        # generate base bottom
-        color = COLOR_TREE_BASE_BROWN
-        vertices = []
-        colors = []
-        border_pt = {"x": 1, "y": 0}
-        steps = 12
-        for s in range(steps):
-            k = -1 * s / steps
-            new_pt = rotate_pt(border_pt, 2 * math.pi * k)
-            colors.append(color)
-            vertices.extend(
-                [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.015]
-            )
-        faces = [steps] + list(range(steps))
-        tree_base = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-        tree_base.units = "m"
+            # generate base bottom
+            color = COLOR_TREE_BASE_BROWN
+            vertices = []
+            colors = []
+            border_pt = {"x": 1, "y": 0}
+            steps = 12
+            for s in range(steps):
+                k = -1 * s / steps
+                new_pt = rotate_pt(border_pt, 2 * math.pi * k)
+                colors.append(color)
+                vertices.extend(
+                    [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.015]
+                )
+            faces = [steps] + list(range(steps))
+            tree_base = Mesh.create(faces=faces, vertices=vertices, colors=colors)
+            tree_base.units = "m"
 
     except Exception as e:
         pass
