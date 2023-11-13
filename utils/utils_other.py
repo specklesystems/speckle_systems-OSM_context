@@ -2,9 +2,13 @@ from copy import copy
 
 from utils.utils_pyproj import create_crs, reproject_to_crs
 
-RESULT_BRANCH = "automate"
+RESULT_BRANCH = "OSM context"
 COLOR_ROAD = (255 << 24) + (30 << 16) + (30 << 8) + 30  # argb
 COLOR_BLD = (255 << 24) + (230 << 16) + (230 << 8) + 230  # argb
+COLOR_GREEN = (255 << 24) + (25 << 16) + (50 << 8) + 13  # argb
+COLOR_TREE_BASE = (255 << 24) + (18 << 16) + (30 << 8) + 8  # argb
+COLOR_TREE_BASE_BROWN = (255 << 24) + (15 << 16) + (10 << 8) + 2  # argb
+COLOR_BASE = color = (255 << 24) + (80 << 16) + (80 << 8) + 80
 COLOR_VISIBILITY = (255 << 24) + (255 << 16) + (10 << 8) + 10  # argb
 
 
