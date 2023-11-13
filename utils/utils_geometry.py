@@ -24,8 +24,11 @@ from specklepy.objects.geometry import Mesh, Point, Polyline
 
 from assets.trees import COLORS, FACES, TEXTURE_COORDS, VERTICES
 from utils.utils_other import (
+    COLOR_TREE_BASE,
     COLOR_BLD,
     COLOR_ROAD,
+    COLOR_GREEN,
+    COLOR_TREE_BASE_BROWN,
     fill_list,
 )
 
@@ -225,7 +228,7 @@ def create_flat_mesh(coords: list[dict], color=None, elevation: float = 0.005) -
     faces = []
     colors = []
     if color is None:  # apply green
-        color = (255 << 24) + (25 << 16) + (50 << 8) + 13  # argb
+        color = COLOR_GREEN
 
     # bottom
     bottom_vert_indices = list(range(len(coords)))
@@ -308,7 +311,6 @@ def extrude_building(
     coords: list[dict], coords_inner: list[list[dict]], height: float
 ) -> Mesh:
     """Create a 3d Mesh from the lists of outer and inner coords and height."""
-
     if len(coords) < 3:
         return None
     if len(coords_inner) == 0:
@@ -321,7 +323,6 @@ def extrude_building_complex(
     coords: list[dict], coords_inner: list[list[dict]], height: float
 ) -> Mesh:
     """Create a 3d Mesh from the lists of outer and inner coords and height."""
-
     vertices = []
     faces = []
     colors = []
@@ -456,8 +457,8 @@ def road_buffer(poly: Polyline, value: float, elevation: float = 0.01) -> Base:
         units="m",
         displayValue=[mesh],
         width=2 * value,
-        source_data="© OpenStreetMap",
-        source_url="https://www.openstreetmap.org/",
+        sourceData="© OpenStreetMap",
+        sourceUrl="https://www.openstreetmap.org/",
     )
 
 
@@ -502,8 +503,8 @@ def join_roads(coords: list[dict], closed: bool, height: float) -> Polyline:
     poly = Polyline.from_points(points)
     poly.closed = closed
     poly.units = "m"
-    poly.source_data = "© OpenStreetMap"
-    poly.source_url = "https://www.openstreetmap.org/"
+    poly.sourceData = "© OpenStreetMap"
+    poly.sourceUrl = "https://www.openstreetmap.org/"
 
     return poly
 
@@ -511,6 +512,8 @@ def join_roads(coords: list[dict], closed: bool, height: float) -> Polyline:
 def generate_tree(tree: dict, coords: dict) -> Mesh():
     """Create a 3d tree in a given location."""
     obj = None
+    tree_base = None
+    tree_base2 = None
     scale = random.randint(80, 140) / 100
     scale_z = random.randint(80, 140) / 100
     if tree["id"] == "forest":
@@ -535,10 +538,45 @@ def generate_tree(tree: dict, coords: dict) -> Mesh():
             texture_coordinates=TEXTURE_COORDS,
         )
         obj.units = "m"
+
+        # generate base top
+        color = COLOR_TREE_BASE
+        vertices = []
+        colors = []
+        border_pt = {"x": 0.9, "y": 0}
+        steps = 12
+        for s in range(steps):
+            k = -1 * s / steps
+            new_pt = rotate_pt(border_pt, 2 * math.pi * k)
+            colors.append(color)
+            vertices.extend(
+                [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.02]
+            )
+        faces = [steps] + list(range(steps))
+        tree_base_top = Mesh.create(faces=faces, vertices=vertices, colors=colors)
+        tree_base_top.units = "m"
+
+        # generate base bottom
+        color = COLOR_TREE_BASE_BROWN
+        vertices = []
+        colors = []
+        border_pt = {"x": 1, "y": 0}
+        steps = 12
+        for s in range(steps):
+            k = -1 * s / steps
+            new_pt = rotate_pt(border_pt, 2 * math.pi * k)
+            colors.append(color)
+            vertices.extend(
+                [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.015]
+            )
+        faces = [steps] + list(range(steps))
+        tree_base = Mesh.create(faces=faces, vertices=vertices, colors=colors)
+        tree_base.units = "m"
+
     except Exception as e:
         pass
 
-    return obj
+    return [obj, tree_base, tree_base_top]
 
 
 def generate_points_inside_polygon(polygon_pts: list[tuple], point_number: int = 3):

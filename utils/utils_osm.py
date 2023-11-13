@@ -1,3 +1,4 @@
+import math
 import requests
 from specklepy.objects import Base
 from specklepy.objects.geometry import Mesh
@@ -13,10 +14,52 @@ from utils.utils_geometry import (
     split_ways_by_intersection,
 )
 from utils.utils_other import (
+    COLOR_BASE,
     clean_string,
     get_degrees_bbox_from_lat_lon_rad,
 )
 from utils.utils_pyproj import create_crs, reproject_to_crs
+
+
+def get_base_plane(lat: float, lon: float, r: float) -> Base:
+    """Get a square base plane."""
+    min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
+    projected_crs = create_crs(lat, lon)
+    min_xy = reproject_to_crs(
+        min_lat_lon[0], min_lat_lon[1], "EPSG:4326", projected_crs
+    )
+    max_xy = reproject_to_crs(
+        max_lat_lon[0], max_lat_lon[1], "EPSG:4326", projected_crs
+    )
+
+    color = COLOR_BASE
+    colors = [color, color, color, color]
+    faces = [4, 0, 1, 2, 3]
+
+    vertices = [
+        min_xy[0],
+        min_xy[1],
+        0,
+        max_xy[0],
+        min_xy[1],
+        0,
+        max_xy[0],
+        max_xy[1],
+        0,
+        min_xy[0],
+        max_xy[1],
+        0,
+    ]
+
+    obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
+    obj.units = "m"
+
+    base_obj = Base(
+        units="m",
+        displayValue=[obj],
+    )
+
+    return base_obj
 
 
 def get_features_from_osm_server(
@@ -181,6 +224,8 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                 if k == len(ways_part):
                     break
                 if rel_inner_ways[n][m]["ref"] == ways_part[k]["id"]:
+                    # if rel_inner_ways[n][m]["ref"] == 260719444:
+                    #    print(f"{ways_part[k]['nodes']}")
                     # reverse way part is needed
                     node_list = ways_part[k]["nodes"].copy()
                     if (
@@ -301,8 +346,8 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                 units="m",
                 displayValue=[obj],
                 building=tags[i]["building"],
-                source_data="© OpenStreetMap",
-                source_url="https://www.openstreetmap.org/",
+                sourceData="© OpenStreetMap",
+                sourceUrl="https://www.openstreetmap.org/",
             )
             objectGroup.append(base_obj)  # (obj, tags[i]["building"]))
 
@@ -480,9 +525,6 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
             # ways
             if feature["type"] == "way":
                 try:
-                    if "6060078867" in feature["nodes"]:
-                        print(feature)
-
                     if feature["tags"][keyword] == "tree_row":
                         tree_rows.append({"nodes": feature["nodes"]})
                     if feature["tags"][keyword] == "forest":
@@ -635,8 +677,8 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
                             units="m",
                             displayValue=[obj],
                             keyword=tags[i][keyword],
-                            source_data="© OpenStreetMap",
-                            source_url="https://www.openstreetmap.org/",
+                            sourceData="© OpenStreetMap",
+                            sourceUrl="https://www.openstreetmap.org/",
                         )
                         objectGroup.append(base_obj)  # (obj, tags[i]["building"]))
                         break
@@ -674,14 +716,18 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
             rotated_coords = rotate_pt(coords_tree, angle_rad)
             obj = generate_tree(tree, rotated_coords)
 
-        if obj is not None:
-            base_obj = Base(
-                units="m",
-                displayValue=[obj],
-                natural="tree",
-                source_data="© OpenStreetMap",
-                source_url="https://www.openstreetmap.org/",
-            )
-            objectGroup.append(base_obj)
+        elements = []
+        for item in obj:
+            if item is not None:
+                elements.append(item)
+
+        base_obj = Base(
+            units="m",
+            displayValue=elements,
+            natural="tree",
+            sourceData="© OpenStreetMap",
+            sourceUrl="https://www.openstreetmap.org/",
+        )
+        objectGroup.append(base_obj)
 
     return objectGroup

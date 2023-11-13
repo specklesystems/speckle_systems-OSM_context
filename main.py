@@ -12,7 +12,7 @@ from speckle_automate import (
 )
 from specklepy.objects.other import Collection
 
-from utils.utils_osm import get_buildings, get_nature, get_roads
+from utils.utils_osm import get_base_plane, get_buildings, get_nature, get_roads
 from utils.utils_other import RESULT_BRANCH
 from utils.utils_png import create_image_from_bbox
 from utils.utils_server import query_version_info
@@ -66,6 +66,7 @@ def automate_function(
             angle_rad = 0
 
         # get OSM buildings and roads in given area
+        base_plane = get_base_plane(lat, lon, function_inputs.radius_in_meters)
         building_base_objects = get_buildings(
             lat, lon, function_inputs.radius_in_meters, angle_rad
         )
@@ -82,10 +83,11 @@ def automate_function(
             units="m",
             latitude=lat,
             longitude=lon,
+            trueNorth=angle_rad,
             name="Context: Buildings",
             collectionType="BuildingsMeshesLayer",
-            source_data="© OpenStreetMap",
-            source_url="https://www.openstreetmap.org/",
+            sourceData="© OpenStreetMap",
+            sourceUrl="https://www.openstreetmap.org/",
         )
         r"""
         roads_line_layer = Collection(
@@ -93,10 +95,11 @@ def automate_function(
             units="m",
             latitude=lat,
             longitude=lon,
+            trueNorth=angle_rad,
             name="Context: Roads (Polylines)",
             collectionType="RoadPolyinesLayer",
-            source_data="© OpenStreetMap",
-            source_url="https://www.openstreetmap.org/",
+            sourceData="© OpenStreetMap",
+            sourceUrl="https://www.openstreetmap.org/",
         )
         """
         roads_mesh_layer = Collection(
@@ -104,32 +107,35 @@ def automate_function(
             units="m",
             latitude=lat,
             longitude=lon,
+            trueNorth=angle_rad,
             name="Context: Roads (Meshes)",
             collectionType="RoadMeshesLayer",
-            source_data="© OpenStreetMap",
-            source_url="https://www.openstreetmap.org/",
+            sourceData="© OpenStreetMap",
+            sourceUrl="https://www.openstreetmap.org/",
         )
         nature_layer = Collection(
             elements=nature_base_objects,
             units="m",
             latitude=lat,
             longitude=lon,
+            trueNorth=angle_rad,
             name="Context: Nature",
             collectionType="NatureMeshesLayer",
-            source_data="© OpenStreetMap",
-            source_url="https://www.openstreetmap.org/",
+            sourceData="© OpenStreetMap",
+            sourceUrl="https://www.openstreetmap.org/",
         )
 
         # add layers to a commit Collection object
         commit_obj = Collection(
-            elements=[building_layer, roads_mesh_layer, nature_layer],
+            elements=[base_plane, building_layer, roads_mesh_layer, nature_layer],
             units="m",
             latitude=lat,
             longitude=lon,
+            trueNorth=angle_rad,
             name="Context",
             collectionType="ContextLayer",
-            source_data="© OpenStreetMap",
-            source_url="https://www.openstreetmap.org/",
+            sourceData="© OpenStreetMap",
+            sourceUrl="https://www.openstreetmap.org/",
         )
 
         # create a commit
@@ -137,9 +143,10 @@ def automate_function(
             commit_obj, RESULT_BRANCH, "Context from Automate"
         )
 
-        # create and add a basemap png file
-        path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
-        automate_context.store_file_result(path)
+        if function_inputs.generate_image is True:
+            # create and add a basemap png file
+            path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
+            automate_context.store_file_result(path)
 
         # automate_context.set_context_view(
         #    resource_ids=[automate_context.automation_run_data.model_id, new_model_id]
