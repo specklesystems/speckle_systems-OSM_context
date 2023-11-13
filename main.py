@@ -34,10 +34,6 @@ class FunctionInputs(AutomateBase):
             "Radius from the Model location," " derived from Revit model lat, lon."
         ),
     )
-    include_nature: bool = Field(
-        title="Include natural elements",
-        description=("Include natural elements (grass, trees etc.)"),
-    )
     generate_image: bool = Field(
         title="Generate a 2d map",
         description=(
@@ -76,12 +72,9 @@ def automate_function(
         roads_lines, roads_meshes = get_roads(
             lat, lon, function_inputs.radius_in_meters, angle_rad
         )
-        if function_inputs.include_nature is True:
-            nature_base_objects = get_nature(
-                lat, lon, function_inputs.radius_in_meters, angle_rad
-            )
-        else:
-            nature_base_objects = []
+        nature_base_objects = get_nature(
+            lat, lon, function_inputs.radius_in_meters, angle_rad
+        )
 
         # create layers for buildings and roads
         building_layer = Collection(
@@ -145,9 +138,8 @@ def automate_function(
         )
 
         # create and add a basemap png file
-        if function_inputs.generate_image is True:
-            path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
-            automate_context.store_file_result(path)
+        path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
+        automate_context.store_file_result(path)
 
         # automate_context.set_context_view(
         #    resource_ids=[automate_context.automation_run_data.model_id, new_model_id]
