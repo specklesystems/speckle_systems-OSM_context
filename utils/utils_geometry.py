@@ -509,13 +509,15 @@ def join_roads(coords: list[dict], closed: bool, height: float) -> Polyline:
     return poly
 
 
-def generate_tree(tree: dict, coords: dict) -> Mesh():
+def generate_tree(
+    tree: dict, coords: dict, scale_factor, elevation=0.025
+) -> list[Mesh]:
     """Create a 3d tree in a given location."""
     obj = None
     tree_base = None
     tree_base_top = None
-    scale = random.randint(80, 140) / 100
-    scale_z = random.randint(80, 140) / 100
+    scale = random.randint(80, 140) / 100 / scale_factor
+    scale_z = random.randint(80, 140) / 100 / scale_factor
     if tree["id"] == "forest":
         scale *= 2
         scale_z *= 2
@@ -544,14 +546,14 @@ def generate_tree(tree: dict, coords: dict) -> Mesh():
             color = COLOR_TREE_BASE_BROWN
             vertices = []
             colors = []
-            border_pt = {"x": 1, "y": 0}
+            border_pt = {"x": 1 / scale_factor, "y": 0}
             steps = 12
             for s in range(steps):
                 k = -1 * s / steps
                 new_pt = rotate_pt(border_pt, 2 * math.pi * k)
                 colors.append(color)
                 vertices.extend(
-                    [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.025]
+                    [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], elevation]
                 )
             faces = [steps] + list(range(steps))
             tree_base = Mesh.create(faces=faces, vertices=vertices, colors=colors)
@@ -561,20 +563,24 @@ def generate_tree(tree: dict, coords: dict) -> Mesh():
             color = COLOR_TREE_BASE
             vertices = []
             colors = []
-            border_pt = {"x": 0.9, "y": 0}
+            border_pt = {"x": 0.9 / scale_factor, "y": 0}
             steps = 12
             for s in range(steps):
                 k = -1 * s / steps
                 new_pt = rotate_pt(border_pt, 2 * math.pi * k)
                 colors.append(color)
                 vertices.extend(
-                    [new_pt["x"] + coords["x"], new_pt["y"] + coords["y"], 0.030]
+                    [
+                        new_pt["x"] + coords["x"],
+                        new_pt["y"] + coords["y"],
+                        elevation * 1.15,
+                    ]
                 )
             faces = [steps] + list(range(steps))
             tree_base_top = Mesh.create(faces=faces, vertices=vertices, colors=colors)
             tree_base_top.units = "m"
-
     except Exception as e:
+        print(e)
         pass
 
     return [obj, tree_base, tree_base_top]

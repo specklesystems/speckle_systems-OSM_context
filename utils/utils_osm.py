@@ -1,7 +1,9 @@
 import math
+
 import requests
 from specklepy.objects import Base
 from specklepy.objects.geometry import Mesh
+from specklepy.objects.units import get_scale_factor_to_meters
 
 from utils.utils_geometry import (
     create_flat_mesh,
@@ -21,8 +23,9 @@ from utils.utils_other import (
 from utils.utils_pyproj import create_crs, reproject_to_crs
 
 
-def get_base_plane(lat: float, lon: float, r: float) -> Base:
+def get_base_plane(lat: float, lon: float, r: float, units: float) -> Base:
     """Get a square base plane."""
+    scale_factor = get_scale_factor_to_meters(units)
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
     projected_crs = create_crs(lat, lon)
     min_xy = reproject_to_crs(
@@ -37,25 +40,25 @@ def get_base_plane(lat: float, lon: float, r: float) -> Base:
     faces = [4, 0, 1, 2, 3]
 
     vertices = [
-        min_xy[0],
-        min_xy[1],
+        min_xy[0] / scale_factor,
+        min_xy[1] / scale_factor,
         0,
-        max_xy[0],
-        min_xy[1],
+        max_xy[0] / scale_factor,
+        min_xy[1] / scale_factor,
         0,
-        max_xy[0],
-        max_xy[1],
+        max_xy[0] / scale_factor,
+        max_xy[1] / scale_factor,
         0,
-        min_xy[0],
-        max_xy[1],
+        min_xy[0] / scale_factor,
+        max_xy[1] / scale_factor,
         0,
     ]
 
     obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-    obj.units = "m"
+    obj.units = units
 
     base_obj = Base(
-        units="m",
+        units=units,
         displayValue=[obj],
     )
 
@@ -80,9 +83,13 @@ def get_features_from_osm_server(
     return features
 
 
-def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]:
+def get_buildings(
+    lat: float, lon: float, r: float, angle_rad: float, units: float
+) -> list[Base]:
     """Get a list of 3d Meshes of buildings by lat&lon (degrees) and radius (meters)."""
     # https://towardsdatascience.com/loading-data-from-openstreetmap-with-python-and-the-overpass-api-513882a27fd0
+
+    scale_factor = get_scale_factor_to_meters(units)
 
     keyword = "building"
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
@@ -304,6 +311,7 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                         height *= -1
                 except:
                     pass
+        height /= scale_factor
 
         # go through each external node of the Way
         for k, _ in enumerate(ids["nodes"]):
@@ -314,7 +322,7 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                     x, y = reproject_to_crs(
                         nodes[n]["lat"], nodes[n]["lon"], "EPSG:4326", projected_crs
                     )
-                    coords.append({"x": x, "y": y})
+                    coords.append({"x": x / scale_factor, "y": y / scale_factor})
                     break
 
         # go through each internal node of the Way
@@ -328,7 +336,9 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
                         x, y = reproject_to_crs(
                             nodes[n]["lat"], nodes[n]["lon"], "EPSG:4326", projected_crs
                         )
-                        coords_per_void.append({"x": x, "y": y})
+                        coords_per_void.append(
+                            {"x": x / scale_factor, "y": y / scale_factor}
+                        )
                         break
             coords_inner.append(coords_per_void)
 
@@ -342,8 +352,9 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
             obj = extrude_building(rotated_coords, rotated_coords_inner, height)
 
         if obj is not None:
+            obj.units = units
             base_obj = Base(
-                units="m",
+                units=units,
                 displayValue=[obj],
                 building=tags[i]["building"],
                 sourceData="© OpenStreetMap",
@@ -357,8 +368,11 @@ def get_buildings(lat: float, lon: float, r: float, angle_rad: float) -> list[Ba
     return objectGroup
 
 
-def get_roads(lat: float, lon: float, r: float, angle_rad: float) -> tuple[list[Base]]:
+def get_roads(
+    lat: float, lon: float, r: float, angle_rad: float, units: float
+) -> tuple[list[Base]]:
     """Get a list of Polylines and Meshes of roads by lat&lon (degrees) and radius (meters)."""
+    scale_factor = get_scale_factor_to_meters(units)
     keyword = "highway"
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
     features = get_features_from_osm_server(keyword, min_lat_lon, max_lat_lon)
@@ -452,11 +466,11 @@ def get_roads(lat: float, lon: float, r: float, angle_rad: float) -> tuple[list[
         ids = ways[i]["nodes"]
         coords = []  # replace node IDs with actual coords for each Way
 
-        value = 2
+        value = 2 / scale_factor
         if tags[i][keyword] in ["primary"]:
-            value = 9
+            value = 9 / scale_factor
         elif tags[i][keyword] in ["secondary"]:
-            value = 6
+            value = 6 / scale_factor
         try:
             if tags[i]["area"] == "yes":
                 value = None
@@ -474,7 +488,7 @@ def get_roads(lat: float, lon: float, r: float, angle_rad: float) -> tuple[list[
                     x, y = reproject_to_crs(
                         nodes[n]["lat"], nodes[n]["lon"], "EPSG:4326", projected_crs
                     )
-                    coords.append({"x": x, "y": y})
+                    coords.append({"x": x / scale_factor, "y": y / scale_factor})
                     break
 
         if angle_rad == 0:
@@ -482,18 +496,25 @@ def get_roads(lat: float, lon: float, r: float, angle_rad: float) -> tuple[list[
         else:
             rotated_coords = [rotate_pt(c, angle_rad) for c in coords]
             obj = join_roads(rotated_coords, closed, 0)
+            obj.units = units
         objectGroup.append(obj)
 
-        objMesh = road_buffer(obj, value)
+        objMesh = road_buffer(obj, value, elevation=0.02 / scale_factor)
+        objMesh.units = units
+        for mesh in objMesh.displayValue:
+            mesh.units = units
         if objMesh is not None:  # filter out ignored "areas"
             meshGroup.append(objMesh)
 
     return objectGroup, meshGroup
 
 
-def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]:
+def get_nature(
+    lat: float, lon: float, r: float, angle_rad: float, units: float
+) -> list[Base]:
     """Get a list of 3d Meshes of buildings by lat&lon (degrees) and radius (meters)."""
     # https://towardsdatascience.com/loading-data-from-openstreetmap-with-python-and-the-overpass-api-513882a27fd0
+    scale_factor = get_scale_factor_to_meters(units)
     features = []
     all_keywords = ["landuse", "natural", "leisure"]
 
@@ -516,10 +537,10 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
         all_landuse_polygons + all_natural_polygons + all_leisure_polygons
     )
     trees_nodes = []  # natural: tree, natural: tree_row,
-    tree_rows = []
 
     objectGroup = []
     for keyword in all_keywords:
+        tree_rows = []
         for feature in features:
             trees = ""
             # ways
@@ -634,7 +655,6 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
                     "trees": rel_outer_ways_tags[n]["trees"],
                 }
             )
-
         projected_crs = create_crs(lat, lon)
 
         # get coords of Ways - polygons
@@ -656,7 +676,7 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
                         x, y = reproject_to_crs(
                             nodes[n]["lat"], nodes[n]["lon"], "EPSG:4326", projected_crs
                         )
-                        coords.append({"x": x, "y": y})
+                        coords.append({"x": x / scale_factor, "y": y / scale_factor})
                         break
 
             if len(tree_polygon) > 3:
@@ -665,16 +685,17 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
                     trees_nodes.append({"id": "forest", "lon": pt[0], "lat": pt[1]})
 
             if angle_rad == 0:
-                obj = create_flat_mesh(coords)
+                obj = create_flat_mesh(coords, elevation=0.01)
             else:
                 rotated_coords = [rotate_pt(c, angle_rad) for c in coords]
-                obj = create_flat_mesh(rotated_coords)
+                obj = create_flat_mesh(rotated_coords, elevation=0.01)
+            obj.units = units
 
             if obj is not None:
                 for keyword in all_keywords:
                     try:  # iterate through keywords
                         base_obj = Base(
-                            units="m",
+                            units=units,
                             displayValue=[obj],
                             keyword=tags[i][keyword],
                             sourceData="© OpenStreetMap",
@@ -708,21 +729,26 @@ def get_nature(lat: float, lon: float, r: float, angle_rad: float) -> list[Base]
     # generate trees:
     for tree in trees_nodes:
         x, y = reproject_to_crs(tree["lat"], tree["lon"], "EPSG:4326", projected_crs)
-        coords_tree = {"x": x, "y": y}
+        coords_tree = {"x": x / scale_factor, "y": y / scale_factor}
 
         if angle_rad == 0:
-            obj = generate_tree(tree, coords_tree)
+            tree_elements = generate_tree(
+                tree, coords_tree, scale_factor, elevation=0.025 / scale_factor
+            )
         else:
             rotated_coords = rotate_pt(coords_tree, angle_rad)
-            obj = generate_tree(tree, rotated_coords)
+            tree_elements = generate_tree(
+                tree, rotated_coords, scale_factor, elevation=0.025 / scale_factor
+            )
 
         elements = []
-        for item in obj:
+        for item in tree_elements:
             if item is not None:
+                item.units = units
                 elements.append(item)
 
         base_obj = Base(
-            units="m",
+            units=units,
             displayValue=elements,
             natural="tree",
             sourceData="© OpenStreetMap",

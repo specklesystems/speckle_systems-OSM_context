@@ -11,11 +11,12 @@ from speckle_automate import (
     execute_automate_function,
 )
 from specklepy.objects.other import Collection
+from specklepy.objects.units import Units
 
 from utils.utils_osm import get_base_plane, get_buildings, get_nature, get_roads
 from utils.utils_other import RESULT_BRANCH
 from utils.utils_png import create_image_from_bbox
-from utils.utils_server import query_version_info
+from utils.utils_server import get_commit_data, query_units_info, query_version_info
 
 
 class FunctionInputs(AutomateBase):
@@ -57,7 +58,8 @@ def automate_function(
     """
     # the context provides a conveniet way, to receive the triggering version
     try:
-        projInfo = query_version_info(automate_context)
+        project = get_commit_data(automate_context)
+        projInfo = query_version_info(automate_context, project)
         lon = np.rad2deg(projInfo["longitude"])
         lat = np.rad2deg(projInfo["latitude"])
         try:
@@ -65,22 +67,27 @@ def automate_function(
         except:
             angle_rad = 0
 
+        # get units conversion factor
+        project_units = query_units_info(automate_context, project)
+
         # get OSM buildings and roads in given area
-        base_plane = get_base_plane(lat, lon, function_inputs.radius_in_meters)
+        base_plane = get_base_plane(
+            lat, lon, function_inputs.radius_in_meters, project_units
+        )
         building_base_objects = get_buildings(
-            lat, lon, function_inputs.radius_in_meters, angle_rad
+            lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
         )
         roads_lines, roads_meshes = get_roads(
-            lat, lon, function_inputs.radius_in_meters, angle_rad
+            lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
         )
         nature_base_objects = get_nature(
-            lat, lon, function_inputs.radius_in_meters, angle_rad
+            lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
         )
 
         # create layers for buildings and roads
         building_layer = Collection(
             elements=building_base_objects,
-            units="m",
+            units=project_units,
             latitude=lat,
             longitude=lon,
             trueNorth=angle_rad,
@@ -104,7 +111,7 @@ def automate_function(
         """
         roads_mesh_layer = Collection(
             elements=roads_meshes,
-            units="m",
+            units=project_units,
             latitude=lat,
             longitude=lon,
             trueNorth=angle_rad,
@@ -115,7 +122,7 @@ def automate_function(
         )
         nature_layer = Collection(
             elements=nature_base_objects,
-            units="m",
+            units=project_units,
             latitude=lat,
             longitude=lon,
             trueNorth=angle_rad,
@@ -128,7 +135,7 @@ def automate_function(
         # add layers to a commit Collection object
         commit_obj = Collection(
             elements=[base_plane, building_layer, roads_mesh_layer, nature_layer],
-            units="m",
+            units=project_units,
             latitude=lat,
             longitude=lon,
             trueNorth=angle_rad,
