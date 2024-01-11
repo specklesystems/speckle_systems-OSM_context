@@ -149,6 +149,7 @@ def automate_function(
         new_model_id, _ = automate_context.create_new_version_in_project(
             commit_obj, RESULT_BRANCH, "Context from Automate"
         )
+        automate_context.set_context_view([new_model_id], True)
 
         if function_inputs.generate_image is True:
             # create and add a basemap png file
