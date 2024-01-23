@@ -5,6 +5,18 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "command": "mypy .",
+      "name": "mypy tests",
+      "request": "launch",
+      "type": "node-terminal",
+    },
+    {
+      "command": "flake8 main.py",
+      "name": "wepython tests",
+      "request": "launch",
+      "type": "node-terminal",
+    },
+    {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
