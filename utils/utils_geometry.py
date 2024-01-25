@@ -24,29 +24,32 @@ from specklepy.objects.geometry import Mesh, Point, Polyline
 
 from assets.trees import COLORS, FACES, TEXTURE_COORDS, VERTICES
 from utils.utils_other import (
-    COLOR_TREE_BASE,
     COLOR_BLD,
-    COLOR_ROAD,
     COLOR_GREEN,
+    COLOR_ROAD,
+    COLOR_TREE_BASE,
     COLOR_TREE_BASE_BROWN,
-    fill_list,
+    split_list_by_repeated_elements,
 )
 
 
 def fix_orientation(
-    point_tuple_list: list,
-    vert_indices: list,
-    make_counter_clockwise: bool = True,
+    point_tuple_list: list[tuple[float | int, float | int]],
+    vert_indices: list[int],
+    make_clockwise_facing_down: bool = True,
     coef: int = 1,
 ) -> tuple[list, bool]:
     """Check the polygon face orientation and reverse if needed."""
-    sum_orientation = 0
-    for k, _ in enumerate(point_tuple_list):  # pointTupleList:
-        index = k + 1
-        if k == len(point_tuple_list) - 1:
-            index = 0
+    sum_orientation: float | int = 0
+    for k, _ in enumerate(point_tuple_list):
+        if k * coef >= len(point_tuple_list):
+            break
+
+        next_index = k + 1
+        if next_index * coef >= len(point_tuple_list) - 1:
+            next_index = 0
         pt = point_tuple_list[k * coef]
-        pt2 = point_tuple_list[index * coef]
+        pt2 = point_tuple_list[next_index * coef]
 
         sum_orientation += (pt2[0] - pt[0]) * (pt2[1] + pt[1])
 
@@ -55,26 +58,37 @@ def fix_orientation(
     else:
         original_clockwise_orientation = False  # facing up originally
         # if needs to be facing down, reverse the vertex order
-        if make_counter_clockwise:
+        if make_clockwise_facing_down:
             vert_indices.reverse()
 
     return vert_indices, original_clockwise_orientation
 
 
 def create_side_face(
-    coords, i, next_coord_index, height, clockwise_orientation
+    coords: list[dict],
+    i: int,
+    height: float | int,
+    clockwise_orientation: bool,
 ) -> list[float]:
-    """Constructing a vertical Mesh face assuming counter-clockwise orientation of the base polygon."""
+    """Constructing vertical Mesh face (wall) facing outside the building."""
+    if i == len(coords) - 1:
+        next_coord_index = 0
+    elif i < len(coords) - 1:
+        next_coord_index = i + 1
+    else:
+        raise IndexError(f"Index '{i}' is out of range ({len(coords)} points)")
+
+    next_coord = coords[next_coord_index]
     if clockwise_orientation is False:
         side_vertices = [
             coords[i]["x"],
             coords[i]["y"],
             0,
-            next_coord_index["x"],
-            next_coord_index["y"],
+            next_coord["x"],
+            next_coord["y"],
             0,
-            next_coord_index["x"],
-            next_coord_index["y"],
+            next_coord["x"],
+            next_coord["y"],
             height,
             coords[i]["x"],
             coords[i]["y"],
@@ -88,11 +102,11 @@ def create_side_face(
             coords[i]["x"],
             coords[i]["y"],
             height,
-            next_coord_index["x"],
-            next_coord_index["y"],
+            next_coord["x"],
+            next_coord["y"],
             height,
-            next_coord_index["x"],
-            next_coord_index["y"],
+            next_coord["x"],
+            next_coord["y"],
             0,
         ]
 
@@ -100,8 +114,8 @@ def create_side_face(
 
 
 def to_triangles(
-    coords: list[dict], coords_inner: list[dict], attempt: int = 0
-) -> tuple[dict, int]:
+    coords: list[dict], coords_inner: list[list[dict]], attempt: int = 0
+) -> tuple[dict | None, int | None]:
     """Generate triangular faces from the Polygon with voids."""
     # https://gis.stackexchange.com/questions/316697/delaunay-triangulation-algorithm-in-shapely-producing-erratic-result
     try:
@@ -209,19 +223,20 @@ def to_triangles(
             return None, None
 
 
-def rotate_pt(coord: dict, angle: float) -> dict:
+def rotate_pt(coord: dict, angle_rad: float | int) -> dict:
     """Rotate a point around (0,0,1) axis."""
     x = coord["x"]
     y = coord["y"]
-    x2 = x * math.cos(angle) + y * math.sin(angle)
-    y2 = -x * math.sin(angle) + y * math.cos(angle)
+    x2 = x * math.cos(angle_rad) + y * math.sin(angle_rad)
+    y2 = -x * math.sin(angle_rad) + y * math.cos(angle_rad)
 
     return {"x": x2, "y": y2}
 
 
-def create_flat_mesh(coords: list[dict], color=None, elevation: float = 0.01) -> Mesh:
+def create_flat_mesh(
+    coords: list[dict], color: int | None = None, elevation: float = 0.01
+) -> Mesh:
     """Create a polygon facing up, no voids."""
-
     if len(coords) < 3:
         return None
     vertices = []
@@ -232,10 +247,8 @@ def create_flat_mesh(coords: list[dict], color=None, elevation: float = 0.01) ->
 
     # bottom
     bottom_vert_indices = list(range(len(coords)))
-    bottom_vertices = [[c["x"], c["y"]] for c in coords]
-    bottom_vert_indices, clockwise_orientation = fix_orientation(
-        bottom_vertices, bottom_vert_indices
-    )
+    bottom_vertices = [(c["x"], c["y"]) for c in coords]
+    bottom_vert_indices, _ = fix_orientation(bottom_vertices, bottom_vert_indices)
     bottom_vert_indices.reverse()
 
     for c in coords:
@@ -244,16 +257,13 @@ def create_flat_mesh(coords: list[dict], color=None, elevation: float = 0.01) ->
     faces.extend([len(coords)] + bottom_vert_indices)
 
     obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-    obj.units = "m"
+    # obj.units = "m"
 
     return obj
 
 
-def extrude_building_simple(
-    coords: list[dict], coords_inner: list[list[dict]], height: float
-) -> Mesh:
-    """Create a 3d Mesh from the lists of outer and inner coords and height."""
-
+def extrude_building_simple(coords: list[dict], height: float | int) -> Mesh:
+    """Create 3D Mesh from lists of outer and inner coords & height."""
     vertices = []
     faces = []
     colors = []
@@ -265,7 +275,7 @@ def extrude_building_simple(
 
     # bottom
     bottom_vert_indices = list(range(len(coords)))
-    bottom_vertices = [[c["x"], c["y"]] for c in coords]
+    bottom_vertices = [(c["x"], c["y"]) for c in coords]
     bottom_vert_indices, clockwise_orientation = fix_orientation(
         bottom_vertices, bottom_vert_indices
     )
@@ -287,40 +297,21 @@ def extrude_building_simple(
     # sides
     total_vertices = len(colors)
     for i, c in enumerate(coords):
-        if i != len(coords) - 1:
-            next_coord_index = coords[i + 1]
-        else:
-            next_coord_index = coords[0]  # 0
-
         side_vert_indices = list(range(total_vertices, total_vertices + 4))
         faces.extend([4] + side_vert_indices)
-        side_vertices = create_side_face(
-            coords, i, next_coord_index, height, clockwise_orientation
-        )
+        side_vertices = create_side_face(coords, i, height, clockwise_orientation)
         vertices.extend(side_vertices)
         colors.extend([color, color, color, color])
         total_vertices += 4
 
     obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-    obj.units = "m"
+    # obj.units = "m"
 
     return obj
 
 
-def extrude_building(
-    coords: list[dict], coords_inner: list[list[dict]], height: float
-) -> Mesh:
-    """Create a 3d Mesh from the lists of outer and inner coords and height."""
-    if len(coords) < 3:
-        return None
-    if len(coords_inner) == 0:
-        return extrude_building_simple(coords, coords_inner, height)
-    else:
-        return extrude_building_complex(coords, coords_inner, height)
-
-
 def extrude_building_complex(
-    coords: list[dict], coords_inner: list[list[dict]], height: float
+    coords: list[dict], coords_inner: list[list[dict]], height: float | int
 ) -> Mesh:
     """Create a 3d Mesh from the lists of outer and inner coords and height."""
     vertices = []
@@ -337,10 +328,10 @@ def extrude_building_complex(
         triangulated_geom, _ = to_triangles(coords, coords_inner)
     except Exception as e:  # default to only outer border mesh generation
         print(f"Mesh creation failed: {e}")
-        return extrude_building_simple(coords, [], height)
+        return extrude_building_simple(coords, height)
 
     if triangulated_geom is None:  # default to only outer border mesh generation
-        return extrude_building_simple(coords, [], height)
+        return extrude_building_simple(coords, height)
 
     pt_list = [[p[0], p[1], 0] for p in triangulated_geom["vertices"]]
     triangle_list = [trg for trg in triangulated_geom["triangles"]]
@@ -372,21 +363,14 @@ def extrude_building_complex(
 
     # sides
     bottom_vert_indices = list(range(len(coords)))
-    bottom_vertices = [[c["x"], c["y"]] for c in coords]
+    bottom_vertices = [(c["x"], c["y"]) for c in coords]
     bottom_vert_indices, clockwise_orientation = fix_orientation(
         bottom_vertices, bottom_vert_indices
     )
     for i, c in enumerate(coords):
-        if i != len(coords) - 1:
-            next_coord_index = coords[i + 1]
-        else:
-            next_coord_index = coords[0]  # 0
-
         side_vert_indices = list(range(total_vertices, total_vertices + 4))
         faces.extend([4] + side_vert_indices)
-        side_vertices = create_side_face(
-            coords, i, next_coord_index, height, clockwise_orientation
-        )
+        side_vertices = create_side_face(coords, i, height, clockwise_orientation)
 
         vertices.extend(side_vertices)
         colors.extend([color, color, color, color])
@@ -401,17 +385,11 @@ def extrude_building_complex(
         )
 
         for i, c in enumerate(local_coords_inner):
-            if i != len(local_coords_inner) - 1:
-                next_coord_index = local_coords_inner[i + 1]
-            else:
-                next_coord_index = local_coords_inner[0]  # 0
-
             side_vert_indices = list(range(total_vertices, total_vertices + 4))
             faces.extend([4] + side_vert_indices)
             side_vertices = create_side_face(
                 local_coords_inner,
                 i,
-                next_coord_index,
                 height,
                 clockwise_orientation_void,
             )
@@ -420,12 +398,24 @@ def extrude_building_complex(
             total_vertices += 4
 
     obj = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-    obj.units = "m"
+    # obj.units = "m"
 
     return obj
 
 
-def road_buffer(poly: Polyline, value: float, elevation: float = 0.02) -> Base:
+def extrude_building(
+    coords: list[dict], coords_inner: list[list[dict]], height: float | int
+) -> Mesh:
+    """Create a 3d Mesh from the lists of outer and inner coords and height."""
+    if len(coords) < 3:
+        return None
+    if len(coords_inner) == 0:
+        return extrude_building_simple(coords, height)
+    else:
+        return extrude_building_complex(coords, coords_inner, height)
+
+
+def road_buffer(poly: Polyline, value: float | int, elevation: float = 0.02) -> Base:
     """Creage a Mesh from Polyline and buffer value."""
     if value is None:
         return
@@ -451,10 +441,10 @@ def road_buffer(poly: Polyline, value: float, elevation: float = 0.02) -> Base:
     mesh = Mesh.create(
         vertices=vertices, colors=colors, faces=[len(vetricesTuples)] + face_list
     )
-    mesh.units = "m"
+    # mesh.units = "m"
 
     return Base(
-        units="m",
+        # units="m",
         displayValue=[mesh],
         width=2 * value,
         sourceData="© OpenStreetMap",
@@ -462,28 +452,27 @@ def road_buffer(poly: Polyline, value: float, elevation: float = 0.02) -> Base:
     )
 
 
-def split_ways_by_intersection(ways: list[dict], tags: list[dict]) -> tuple[list[dict]]:
+def split_ways_by_intersection(
+    ways: list[dict], tags: list[dict]
+) -> tuple[list[dict], list[dict]]:
     """Separate ways and tags into different lists if they self-intersect."""
     splitWays = []
     splitTags = []
 
     for i, w in enumerate(ways):
         ids = w["nodes"]
-
         try:
             if tags[i]["area"] == "yes":
                 splitWays.append(w)
                 splitTags.append(tags[i])
-                continue
-        except:
+                continue  # don't look for intersections
+        except KeyError:
             pass
 
-        x = set(ids)
         if len(ids) == 0 or len(list(set(ids))) < len(ids):  # if there are repetitions
-            wList = fill_list(ids, [])
+            wList = split_list_by_repeated_elements(ids, [])
             for item in wList:
-                x = copy(w)
-                x["nodes"] = item
+                x: dict = {"nodes": item}
                 splitWays.append(x)
                 splitTags.append(tags[i])
         else:
@@ -493,7 +482,7 @@ def split_ways_by_intersection(ways: list[dict], tags: list[dict]) -> tuple[list
     return splitWays, splitTags
 
 
-def join_roads(coords: list[dict], closed: bool, height: float) -> Polyline:
+def join_roads(coords: list[dict], closed: bool) -> Polyline:
     """Create a Polyline from a list of coordinates."""
     points = []
 
@@ -502,7 +491,7 @@ def join_roads(coords: list[dict], closed: bool, height: float) -> Polyline:
 
     poly = Polyline.from_points(points)
     poly.closed = closed
-    poly.units = "m"
+    # poly.units = "m"
     poly.sourceData = "© OpenStreetMap"
     poly.sourceUrl = "https://www.openstreetmap.org/"
 
@@ -539,7 +528,7 @@ def generate_tree(
             colors=COLORS,
             texture_coordinates=TEXTURE_COORDS,
         )
-        obj.units = "m"
+        # obj.units = "m"
 
         if tree["id"] != "forest":
             # generate base bottom
@@ -557,7 +546,7 @@ def generate_tree(
                 )
             faces = [steps] + list(range(steps))
             tree_base = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-            tree_base.units = "m"
+            # tree_base.units = "m"
 
             # generate base top
             color = COLOR_TREE_BASE
@@ -578,7 +567,7 @@ def generate_tree(
                 )
             faces = [steps] + list(range(steps))
             tree_base_top = Mesh.create(faces=faces, vertices=vertices, colors=colors)
-            tree_base_top.units = "m"
+            # tree_base_top.units = "m"
     except Exception as e:
         print(e)
         pass
@@ -586,7 +575,9 @@ def generate_tree(
     return [obj, tree_base, tree_base_top]
 
 
-def generate_points_inside_polygon(polygon_pts: list[tuple], point_number: int = 3):
+def generate_points_inside_polygon(
+    polygon_pts: list[tuple], point_number: int = 3
+) -> list[tuple[float]]:
     """Populate polygon with points."""
     # https://codereview.stackexchange.com/questions/69833/generate-sample-coordinates-inside-a-polygon
 
@@ -605,6 +596,6 @@ def generate_points_inside_polygon(polygon_pts: list[tuple], point_number: int =
         else:
             p = shapely_Point(x, y)
         points.append(affine_transform(p, transform))
-    coords = np.array([p.coords for p in points]).reshape(-1, 2)
-    coords = [p.coords[0] for p in points]
+    # coords = np.array([p.coords for p in points]).reshape(-1, 2)
+    coords: list[tuple[float]] = [p.coords[0] for p in points]
     return coords

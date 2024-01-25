@@ -1,9 +1,11 @@
 from gql import gql
+from speckle_automate import AutomationContext
 from specklepy.logging.exceptions import SpeckleException, SpeckleInvalidUnitException
 from specklepy.objects.units import Units, get_units_from_string
 
 
-def get_commit_data(automate_context):
+def get_commit_data(automate_context: AutomationContext) -> dict:
+    """Get Revit project info from commit."""
     automation_run_data = automate_context.automation_run_data
     # get referencedObject
     query = gql(
@@ -47,7 +49,8 @@ def get_commit_data(automate_context):
     return project["stream"]["object"]["data"]
 
 
-def get_ref_obj_data(automate_context, ref_obj: str):
+def get_ref_obj_data(automate_context: AutomationContext, ref_obj: str) -> dict:
+    """Query JSON data by reference object id."""
     automation_run_data = automate_context.automation_run_data
     client = automate_context.speckle_client
     # get Project data
@@ -70,7 +73,8 @@ def get_ref_obj_data(automate_context, ref_obj: str):
     return ref_obj["stream"]["object"]["data"]
 
 
-def query_version_info(automate_context, project):
+def query_version_info(automate_context, project) -> dict:
+    """."""
     try:
         projInfo = project["info"]
     except KeyError as e:
@@ -82,9 +86,10 @@ def query_version_info(automate_context, project):
     return projInfo
 
 
-def query_units_info(automate_context, project):
+def query_units_info(automate_context, project) -> Units:
+    """Get Units of Revit model in the commit."""
     try:
-        display_object_units = traverse_to_first_display_value(
+        display_object_units = get_units_from_first_display_value(
             automate_context, project
         )
         if display_object_units:
@@ -95,7 +100,8 @@ def query_units_info(automate_context, project):
     return Units.m
 
 
-def traverse_to_first_display_value(automate_context, base_obj: dict):
+def get_units_from_first_display_value(automate_context, base_obj: dict) -> Units:
+    """Get Units from the first Base object with displayValue."""
     if "Revit.Parameter" in base_obj["speckle_type"]:
         return
 
@@ -123,6 +129,6 @@ def traverse_to_first_display_value(automate_context, base_obj: dict):
         for el in base_obj["elements"]:
             if el["speckle_type"] == "reference":
                 element = get_ref_obj_data(automate_context, el["referencedId"])
-                units = traverse_to_first_display_value(automate_context, element)
+                units = get_units_from_first_display_value(automate_context, element)
                 if isinstance(units, Units):
                     return units

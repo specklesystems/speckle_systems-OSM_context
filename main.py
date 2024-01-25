@@ -11,7 +11,6 @@ from speckle_automate import (
     execute_automate_function,
 )
 from specklepy.objects.other import Collection
-from specklepy.objects.units import Units
 
 from utils.utils_osm import get_base_plane, get_buildings, get_nature, get_roads
 from utils.utils_other import RESULT_BRANCH
@@ -64,7 +63,9 @@ def automate_function(
         lat = np.rad2deg(projInfo["latitude"])
         try:
             angle_rad = projInfo["locations"][0]["trueNorth"]
-        except:
+        except TypeError:
+            angle_rad = 0
+        except KeyError:
             angle_rad = 0
 
         # get units conversion factor
@@ -96,19 +97,6 @@ def automate_function(
             sourceData="© OpenStreetMap",
             sourceUrl="https://www.openstreetmap.org/",
         )
-        r"""
-        roads_line_layer = Collection(
-            elements=roads_lines,
-            units="m",
-            latitude=lat,
-            longitude=lon,
-            trueNorth=angle_rad,
-            name="Context: Roads (Polylines)",
-            collectionType="RoadPolyinesLayer",
-            sourceData="© OpenStreetMap",
-            sourceUrl="https://www.openstreetmap.org/",
-        )
-        """
         roads_mesh_layer = Collection(
             elements=roads_meshes,
             units=project_units,

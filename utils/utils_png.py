@@ -8,7 +8,7 @@ from statistics import mean
 import png
 import requests
 
-from utils.utils_other import get_degrees_bbox_from_lat_lon_rad
+from utils.utils_pyproj import get_degrees_bbox_from_lat_lon_rad
 
 MARGIN_COEFF = 100
 
@@ -17,29 +17,6 @@ assets_folder_path = os.path.dirname(os.path.abspath(__file__)).replace(
 )
 PATH_COPYRIGHT = os.path.join(assets_folder_path, "copyright.PNG")
 PATH_NUMBERS = os.path.join(assets_folder_path, "numbers.PNG")
-
-
-def create_image_from_bbox(lat: float, lon: float, radius: float) -> str:
-    """Get OSM tile image around selected location and save it to a PNG file."""
-    temp_folder = "automate_tiles_" + str(datetime.now().timestamp())[:6]
-    temp_folder_path = os.path.join(os.path.abspath(tempfile.gettempdir()), temp_folder)
-    folderExist = os.path.exists(temp_folder_path)
-    if not folderExist:
-        os.makedirs(temp_folder_path)
-
-    min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, radius)
-
-    x_px = min(2048, int(5 * radius))
-    y_px = min(2048, int(5 * radius))
-    png_name = f"map_{int(lat*1000000)}_{int(lon*1000000)}_{radius}.png"
-    color_rows = get_colors_of_points_from_tiles(
-        min_lat_lon, max_lat_lon, radius, temp_folder_path, png_name, x_px, y_px
-    )
-
-    file_name = os.path.join(temp_folder_path, png_name)
-    writePng(color_rows, file_name)
-
-    return file_name
 
 
 def writePng(color_rows: list[list[float]], path: str) -> None:
@@ -55,18 +32,18 @@ def writePng(color_rows: list[list[float]], path: str) -> None:
 
 
 def get_colors_of_points_from_tiles(
-    min_lat_lon: tuple,
-    max_lat_lon: tuple,
-    radius: float,
+    min_lat_lon: tuple[float, float],
+    max_lat_lon: tuple[float, float],
+    radius: float | int,
     temp_folder_path: str,
     png_name: str,
     x_px: int = 256,
     y_px: int = 256,
-) -> list[list[float]]:
+) -> list[list[int]]:
     """Retrieve colors from OSM tiles from bbox and writes to PNG file 256x256 px."""
     # set the map zoom level
     zoom = 18
-    zoom_max_range = 0.014
+    zoom_max_range = 0.014  # max range in lat and lon
     diff_lat = max_lat_lon[0] - min_lat_lon[0]  # 0.008988129231113362 # for 500m r
     diff_lon = max_lat_lon[1] - min_lat_lon[1]  # 0.014401018774201635 # for 500m r
 
@@ -145,7 +122,7 @@ def get_colors_of_points_from_tiles(
             )
             color_rows[len(range_lat) - i - 1].extend(average_color_tuple)
 
-    color_rows = add_copyright_text(color_rows, width=x_px)
+    color_rows = add_copyright_text(color_rows, x_px)
 
     pixels_per_meter = x_px / 2 / radius
     scale_meters = math.floor(radius / 200) * 100
@@ -154,7 +131,7 @@ def get_colors_of_points_from_tiles(
         if scale_meters == 0:
             scale_meters = 1
     color_rows = add_scale_bar(color_rows, pixels_per_meter, scale_meters, x_px)
-    color_rows = add_scale_text(color_rows, scale_meters, width=x_px)
+    color_rows = add_scale_text(color_rows, scale_meters, x_px)
 
     return color_rows
 
@@ -162,7 +139,7 @@ def get_colors_of_points_from_tiles(
 def get_image_pixel_color(
     sizeX: int,
     sizeY: int,
-    pixels: int,
+    pixels: list[int | float],
     metadata: dict,
     x_ratio: float,
     y_ratio: float,
@@ -190,15 +167,22 @@ def get_image_pixel_color(
                 pixel_y_index += coeff_y
 
             pixel_index = pixel_y_index * sizeX + pixel_x_index
-            if palette is not None:
-                color_tuple = palette[pixels[pixel_index]]
-            elif metadata["alpha"] is True:
-                color_tuple = (
-                    pixels[pixel_index * 4],
-                    pixels[pixel_index * 4 + 1],
-                    pixels[pixel_index * 4 + 2],
-                )
-            else:
+            try:
+                if palette is not None:
+                    color_tuple = palette[pixels[pixel_index]]
+                elif metadata["alpha"] is True:
+                    color_tuple = (
+                        pixels[pixel_index * 4],
+                        pixels[pixel_index * 4 + 1],
+                        pixels[pixel_index * 4 + 2],
+                    )
+                else:
+                    color_tuple = (
+                        pixels[pixel_index * 3],
+                        pixels[pixel_index * 3 + 1],
+                        pixels[pixel_index * 3 + 2],
+                    )
+            except KeyError:
                 color_tuple = (
                     pixels[pixel_index * 3],
                     pixels[pixel_index * 3 + 1],
@@ -222,8 +206,8 @@ def get_image_pixel_color(
 
 
 def add_scale_bar(
-    color_rows: list[list], pixels_per_meter: float, scale_meters: int, size: int
-) -> list[list[float]]:
+    color_rows: list[list[int]], pixels_per_meter: float, scale_meters: int, size: int
+) -> list[list[int]]:
     """Add a scale bar."""
     line_width = int(size / MARGIN_COEFF / 5)
     line_width = max(2, line_width)
@@ -271,7 +255,7 @@ def add_scale_bar(
 
 
 def add_scale_text(
-    color_rows: list[float], scale: int, width: float
+    color_rows: list[list[int]], scale_meters: int, size: int
 ) -> list[list[float]]:
     """Add text (e.g. '100 m') to the scale bar."""
     fileExists = os.path.isfile(PATH_NUMBERS)
@@ -282,27 +266,27 @@ def add_scale_text(
     file_data = reader.read_flat()
     w, h, pixels, metadata = file_data  # w = h = 256pixels each side
 
-    text = str(int(scale)) + "m"
-    size = 25
+    text = str(int(scale_meters)) + "m"
+    size_footer = 25
     px_cut = 5
 
-    new_size = int(3 * width / MARGIN_COEFF)
+    new_size = int(3 * size / MARGIN_COEFF)
     new_size = min(new_size, 25)
     new_size = max(new_size, 12)
-    size_coeff = new_size / size
+    size_coeff = new_size / size_footer
 
     new_h = int(h * size_coeff)
     new_w = int(w * size_coeff)
 
-    start_row = width  # int(rows - 2 * rows / MARGIN_COEFF - new_h)
-    start_ind = int(3 * 2 * width / MARGIN_COEFF)
+    start_row = size  # int(rows - 2 * rows / MARGIN_COEFF - new_h)
+    start_ind = int(3 * 2 * size / MARGIN_COEFF)
 
     for r in range(new_h):
         x_remainder = px_cut * size_coeff  # start a count
         char_index = 0
         for c in range(new_w):
             # at each X, check which number to add
-            if round(x_remainder, 2) == round((size - px_cut) * size_coeff, 2):
+            if round(x_remainder, 2) == round((size_footer - px_cut) * size_coeff, 2):
                 x_remainder = px_cut * size_coeff  # restart for each char
                 char_index += 1
 
@@ -316,7 +300,7 @@ def add_scale_text(
                         index = int(char)
                     except:
                         index = 10
-            x_ratio = (index * size * size_coeff + x_remainder) / new_w
+            x_ratio = (index * size_footer * size_coeff + x_remainder) / new_w
             # get pixel color
             color_tuple = get_image_pixel_color(
                 w,
@@ -331,10 +315,10 @@ def add_scale_text(
             x_remainder += 1 * size_coeff
             row_index = start_row + r
             column_index = start_ind + int(
-                3 * ((size - 2 * px_cut) * char_index * size_coeff + x_remainder)
+                3 * ((size_footer - 2 * px_cut) * char_index * size_coeff + x_remainder)
             )
             if char_index == len(text) - 1:
-                column_index += int(3 * (size - 2 * px_cut) * size_coeff)
+                column_index += int(3 * (size_footer - 2 * px_cut) * size_coeff)
 
             # only overwrite nearly black pixels
             if all([color_tuple[k] < 100 for k in range(3)]):
@@ -345,7 +329,7 @@ def add_scale_text(
     return color_rows
 
 
-def add_copyright_text(color_rows: list[float], width: float) -> list[list[float]]:
+def add_copyright_text(color_rows: list[list[int]], size: int) -> list[list[float]]:
     """Add a bar with copyright notice."""
     fileExists = os.path.isfile(PATH_COPYRIGHT)
     if not fileExists:
@@ -353,21 +337,17 @@ def add_copyright_text(color_rows: list[float], width: float) -> list[list[float
 
     reader = png.Reader(filename=PATH_COPYRIGHT)
     file_data = reader.read_flat()
-    w, h, pixels, metadata = file_data  # w = h = 256pixels each side
+    w, h, pixels, metadata = file_data
 
-    size = 25
-
-    new_size = int(4 * width / MARGIN_COEFF)
-    new_size = min(new_size, 30)
-    new_size = max(new_size, 15)
-    size_coeff = new_size / size
+    footer_size = 25
+    size_coeff = max(min(int(4 * footer_size / MARGIN_COEFF), 30), 15) / footer_size
 
     new_h = int(h * size_coeff)
-    start_ind = int(width - width / MARGIN_COEFF - w * size_coeff)
+    start_ind = int(size - size / MARGIN_COEFF - w * size_coeff)
 
     for r in range(new_h):
         new_row = []
-        for c in range(width):
+        for c in range(size):
             if c >= start_ind and c < start_ind + w * size_coeff:
                 # get pixel color
                 color_tuple = get_image_pixel_color(
@@ -387,3 +367,26 @@ def add_copyright_text(color_rows: list[float], width: float) -> list[list[float
         color_rows.append(new_row)
 
     return color_rows
+
+
+def create_image_from_bbox(lat: float, lon: float, radius: float | int) -> str:
+    """Get OSM tile image around selected location and save it to a PNG file."""
+    temp_folder = "automate_tiles_" + str(datetime.now().timestamp())[:6]
+    temp_folder_path = os.path.join(os.path.abspath(tempfile.gettempdir()), temp_folder)
+    folderExist = os.path.exists(temp_folder_path)
+    if not folderExist:
+        os.makedirs(temp_folder_path)
+
+    min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, radius)
+
+    x_px = min(2048, int(5 * radius))
+    y_px = min(2048, int(5 * radius))
+    png_name = f"map_{int(lat*1000000)}_{int(lon*1000000)}_{radius}.png"
+    color_rows = get_colors_of_points_from_tiles(
+        min_lat_lon, max_lat_lon, radius, temp_folder_path, png_name, x_px, y_px
+    )
+
+    file_name = os.path.join(temp_folder_path, png_name)
+    writePng(color_rows, file_name)
+
+    return file_name

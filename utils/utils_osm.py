@@ -1,9 +1,7 @@
-import math
-
 import requests
 from specklepy.objects import Base
 from specklepy.objects.geometry import Mesh
-from specklepy.objects.units import get_scale_factor_to_meters
+from specklepy.objects.units import Units, get_scale_factor_to_meters
 
 from utils.utils_geometry import (
     create_flat_mesh,
@@ -17,13 +15,16 @@ from utils.utils_geometry import (
 )
 from utils.utils_other import (
     COLOR_BASE,
-    clean_string,
-    get_degrees_bbox_from_lat_lon_rad,
+    cut_off_non_numeric_string,
 )
-from utils.utils_pyproj import create_crs, reproject_to_crs
+from utils.utils_pyproj import (
+    create_crs,
+    get_degrees_bbox_from_lat_lon_rad,
+    reproject_to_crs,
+)
 
 
-def get_base_plane(lat: float, lon: float, r: float, units: float) -> Base:
+def get_base_plane(lat: float, lon: float, r: float, units: Units) -> Base:
     """Get a square base plane."""
     scale_factor = get_scale_factor_to_meters(units)
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
@@ -35,8 +36,7 @@ def get_base_plane(lat: float, lon: float, r: float, units: float) -> Base:
         max_lat_lon[0], max_lat_lon[1], "EPSG:4326", projected_crs
     )
 
-    color = COLOR_BASE
-    colors = [color, color, color, color]
+    colors = [COLOR_BASE for _ in range(4)]
     faces = [4, 0, 1, 2, 3]
 
     vertices = [
@@ -84,7 +84,7 @@ def get_features_from_osm_server(
 
 
 def get_buildings(
-    lat: float, lon: float, r: float, angle_rad: float, units: float
+    lat: float, lon: float, r: float, angle_rad: float, units: Units
 ) -> list[Base]:
     """Get a list of 3d Meshes of buildings by lat&lon (degrees) and radius (meters)."""
     # https://towardsdatascience.com/loading-data-from-openstreetmap-with-python-and-the-overpass-api-513882a27fd0
@@ -291,12 +291,20 @@ def get_buildings(
         height = 9
         try:
             # height = float(tags[i]["height"])
-            height = float(clean_string(tags[i]["height"].split(",")[0].split(";")[0]))
+            height = float(
+                cut_off_non_numeric_string(
+                    tags[i]["height"].split(",")[0].split(";")[0]
+                )
+            )
         except:
             try:
                 # height = float(tags[i]["levels"]) * 3
                 height = (
-                    float(clean_string(tags[i]["levels"].split(",")[0].split(";")[0]))
+                    float(
+                        cut_off_non_numeric_string(
+                            tags[i]["levels"].split(",")[0].split(";")[0]
+                        )
+                    )
                     * 3
                 )
             except:
@@ -304,7 +312,9 @@ def get_buildings(
                     if (
                         # float(tags[i]["layer"])
                         float(
-                            clean_string(tags[i]["layer"].split(",")[0].split(";")[0])
+                            cut_off_non_numeric_string(
+                                tags[i]["layer"].split(",")[0].split(";")[0]
+                            )
                         )
                         < 0
                     ):
@@ -362,15 +372,14 @@ def get_buildings(
             )
             objectGroup.append(base_obj)  # (obj, tags[i]["building"]))
 
-        coords = None
-        height = None
+        coords = []
 
     return objectGroup
 
 
 def get_roads(
-    lat: float, lon: float, r: float, angle_rad: float, units: float
-) -> tuple[list[Base]]:
+    lat: float, lon: float, r: float, angle_rad: float, units: Units
+) -> tuple[list[Base], list[Base]]:
     """Get a list of Polylines and Meshes of roads by lat&lon (degrees) and radius (meters)."""
     scale_factor = get_scale_factor_to_meters(units)
     keyword = "highway"
@@ -492,11 +501,12 @@ def get_roads(
                     break
 
         if angle_rad == 0:
-            obj = join_roads(coords, closed, 0)
+            obj = join_roads(coords, closed)
         else:
             rotated_coords = [rotate_pt(c, angle_rad) for c in coords]
-            obj = join_roads(rotated_coords, closed, 0)
-            obj.units = units
+            obj = join_roads(rotated_coords, closed)
+
+        obj.units = units
         objectGroup.append(obj)
 
         objMesh = road_buffer(obj, value, elevation=0.02 / scale_factor)
@@ -510,7 +520,7 @@ def get_roads(
 
 
 def get_nature(
-    lat: float, lon: float, r: float, angle_rad: float, units: float
+    lat: float, lon: float, r: float, angle_rad: float, units: Units
 ) -> list[Base]:
     """Get a list of 3d Meshes of buildings by lat&lon (degrees) and radius (meters)."""
     # https://towardsdatascience.com/loading-data-from-openstreetmap-with-python-and-the-overpass-api-513882a27fd0
@@ -747,9 +757,15 @@ def get_nature(
                 item.units = units
                 elements.append(item)
 
+        if tree["id"] == "forest":
+            key = "forest"
+        else:
+            key = "natural"
+
         base_obj = Base(
             units=units,
             displayValue=elements,
+            keyword=key,
             natural="tree",
             sourceData="© OpenStreetMap",
             sourceUrl="https://www.openstreetmap.org/",
