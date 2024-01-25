@@ -76,14 +76,14 @@ def get_ref_obj_data(automate_context: AutomationContext, ref_obj: str) -> dict:
 def query_version_info(automate_context, project) -> dict:
     """."""
     try:
-        projInfo = project["info"]
+        proj_info = project["info"]
     except KeyError as e:
         print(e)
         base = automate_context.receive_version()
-        projInfo = base["info"]
-        if not projInfo.speckle_type.endswith("Revit.ProjectInfo"):
+        proj_info = base["info"]
+        if not proj_info.speckle_type.endswith("Revit.ProjectInfo"):
             raise SpeckleException("Not a valid 'Revit.ProjectInfo' provided")
-    return projInfo
+    return proj_info
 
 
 def query_units_info(automate_context, project) -> Units:

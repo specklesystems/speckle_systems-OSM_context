@@ -1,6 +1,7 @@
 """This module contains the business logic of the function.
 
-use the automation_context module to wrap your function in an Autamate context helper
+use the automation_context module to wrap your function
+in an Autamate context helper
 """
 
 import numpy as np
@@ -13,9 +14,13 @@ from speckle_automate import (
 from specklepy.objects.other import Collection
 
 from utils.utils_osm import get_base_plane, get_buildings, get_nature, get_roads
-from utils.utils_other import RESULT_BRANCH
+from utils.utils_other import OSM_COPYRIGHT, OSM_URL, RESULT_BRANCH
 from utils.utils_png import create_image_from_bbox
-from utils.utils_server import get_commit_data, query_units_info, query_version_info
+from utils.utils_server import (
+    get_commit_data,
+    query_units_info,
+    query_version_info,
+)
 
 
 class FunctionInputs(AutomateBase):
@@ -31,7 +36,7 @@ class FunctionInputs(AutomateBase):
         ge=50,
         le=1000,
         description=(
-            "Radius from the Model location," " derived from Revit model lat, lon."
+            "Radius from the Model location, derived from Revit model lat, lon."
         ),
     )
     generate_image: bool = Field(
@@ -46,7 +51,7 @@ def automate_function(
     automate_context: AutomationContext,
     function_inputs: FunctionInputs,
 ) -> None:
-    """This is an example Speckle Automate function.
+    """Speckle Automate function generating 2D and 3D Open Street Map context.
 
     Args:
         automate_context: A context helper object, that carries relevant information
@@ -58,11 +63,11 @@ def automate_function(
     # the context provides a conveniet way, to receive the triggering version
     try:
         project = get_commit_data(automate_context)
-        projInfo = query_version_info(automate_context, project)
-        lon = np.rad2deg(projInfo["longitude"])
-        lat = np.rad2deg(projInfo["latitude"])
+        proj_info = query_version_info(automate_context, project)
+        lon = np.rad2deg(proj_info["longitude"])
+        lat = np.rad2deg(proj_info["latitude"])
         try:
-            angle_rad = projInfo["locations"][0]["trueNorth"]
+            angle_rad = proj_info["locations"][0]["trueNorth"]
         except TypeError:
             angle_rad = 0
         except KeyError:
@@ -73,13 +78,24 @@ def automate_function(
 
         # get OSM buildings and roads in given area
         base_plane = get_base_plane(
-            lat, lon, function_inputs.radius_in_meters, project_units
+            lat,
+            lon,
+            function_inputs.radius_in_meters,
+            project_units,
         )
         building_base_objects = get_buildings(
-            lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
+            lat,
+            lon,
+            function_inputs.radius_in_meters,
+            angle_rad,
+            project_units,
         )
         roads_lines, roads_meshes = get_roads(
-            lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
+            lat,
+            lon,
+            function_inputs.radius_in_meters,
+            angle_rad,
+            project_units,
         )
         nature_base_objects = get_nature(
             lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
@@ -94,8 +110,8 @@ def automate_function(
             trueNorth=angle_rad,
             name="Context: Buildings",
             collectionType="BuildingsMeshesLayer",
-            sourceData="© OpenStreetMap",
-            sourceUrl="https://www.openstreetmap.org/",
+            sourceData=OSM_COPYRIGHT,
+            sourceUrl=OSM_URL,
         )
         roads_mesh_layer = Collection(
             elements=roads_meshes,
@@ -105,8 +121,8 @@ def automate_function(
             trueNorth=angle_rad,
             name="Context: Roads (Meshes)",
             collectionType="RoadMeshesLayer",
-            sourceData="© OpenStreetMap",
-            sourceUrl="https://www.openstreetmap.org/",
+            sourceData=OSM_COPYRIGHT,
+            sourceUrl=OSM_URL,
         )
         nature_layer = Collection(
             elements=nature_base_objects,
@@ -116,43 +132,53 @@ def automate_function(
             trueNorth=angle_rad,
             name="Context: Nature",
             collectionType="NatureMeshesLayer",
-            sourceData="© OpenStreetMap",
-            sourceUrl="https://www.openstreetmap.org/",
+            sourceData=OSM_COPYRIGHT,
+            sourceUrl=OSM_URL,
         )
 
         # add layers to a commit Collection object
         commit_obj = Collection(
-            elements=[base_plane, building_layer, roads_mesh_layer, nature_layer],
+            elements=[
+                base_plane,
+                building_layer,
+                roads_mesh_layer,
+                nature_layer,
+            ],
             units=project_units,
             latitude=lat,
             longitude=lon,
             trueNorth=angle_rad,
             name="Context",
             collectionType="ContextLayer",
-            sourceData="© OpenStreetMap",
-            sourceUrl="https://www.openstreetmap.org/",
+            sourceData=OSM_COPYRIGHT,
+            sourceUrl=OSM_URL,
         )
 
         # create a commit
-        new_model_id, new_version_id = automate_context.create_new_version_in_project(
+        (
+            new_model_id,
+            new_version_id,
+        ) = automate_context.create_new_version_in_project(
             commit_obj, RESULT_BRANCH, "Context from Automate"
         )
-        automate_context.set_context_view([f"{new_model_id}@{new_version_id}"], True)
+        automate_context.set_context_view(
+            [f"{new_model_id}@{new_version_id}"],
+            include_source_model_version=True,
+        )
 
         if function_inputs.generate_image is True:
             # create and add a basemap png file
             path = create_image_from_bbox(lat, lon, function_inputs.radius_in_meters)
             automate_context.store_file_result(path)
 
-        # automate_context.set_context_view(
-        #    resource_ids=[automate_context.automation_run_data.model_id, new_model_id]
-        # )
         automate_context.mark_run_success("Created 3D context")
     except Exception as ex:
         automate_context.mark_run_failed(f"Failed to create 3d context cause: {ex}")
 
 
-def automate_function_without_inputs(automate_context: AutomationContext) -> None:
+def automate_function_without_inputs(
+    automate_context: AutomationContext,
+) -> None:
     """A function example without inputs.
 
     If your function does not need any input variables,
