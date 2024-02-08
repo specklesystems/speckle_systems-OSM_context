@@ -4,7 +4,6 @@ use the automation_context module to wrap your function
 in an Autamate context helper
 """
 
-import numpy as np
 from pydantic import Field
 from speckle_automate import AutomateBase, AutomationContext, execute_automate_function
 from specklepy.objects.other import Collection
@@ -12,7 +11,7 @@ from specklepy.objects.other import Collection
 from utils.utils_osm import get_base_plane, get_buildings, get_nature, get_roads
 from utils.utils_other import OSM_COPYRIGHT, OSM_URL, RESULT_BRANCH
 from utils.utils_png import create_image_from_bbox
-from utils.utils_server import get_commit_data, query_units_info, query_version_info
+from utils.utils_server import get_commit_data, query_version_info
 
 
 class FunctionInputs(AutomateBase):
@@ -23,7 +22,7 @@ class FunctionInputs(AutomateBase):
     https://docs.pydantic.dev/latest/usage/models/
     """
 
-    radius_in_meters: float = Field(
+    radius_meters: float = Field(
         title="Radius in meters",
         ge=50,
         le=1000,
@@ -56,77 +55,47 @@ def automate_function(
     try:
         project = get_commit_data(automate_context)
         proj_info = query_version_info(automate_context, project)
-        coords = (np.rad2deg(proj_info["latitude"]), np.rad2deg(proj_info["longitude"]))
-        try:
-            angle_rad = proj_info["locations"][0]["trueNorth"]
-        except Exception:  # TypeError or KeyError or IndexError:
-            angle_rad = 0
+        coords = proj_info["coords"]
+        project_units = proj_info["project_units"]
 
-        # get units conversion factor
-        project_units = query_units_info(automate_context, project)
-
-        # get OSM buildings and roads in given area
-        base_plane = get_base_plane(
-            coords[0],
-            coords[1],
-            function_inputs.radius_in_meters,
+        # get OSM context from the given area
+        inputs_query = [
+            coords,
+            function_inputs.radius_meters,
+            proj_info["angle_rad"],
             project_units,
-        )
-        building_base_objects = get_buildings(
-            coords[0],
-            coords[1],
-            function_inputs.radius_in_meters,
-            angle_rad,
-            project_units,
-        )
-        roads_lines, roads_meshes = get_roads(
-            coords[0],
-            coords[1],
-            function_inputs.radius_in_meters,
-            angle_rad,
-            project_units,
-        )
-        nature_base_objects = get_nature(
-            coords[0],
-            coords[1],
-            function_inputs.radius_in_meters,
-            angle_rad,
-            project_units,
-        )
+        ]
+        base_plane = get_base_plane(*inputs_query)
+        building_base_objects = get_buildings(*inputs_query)
+        roads_lines, roads_meshes = get_roads(*inputs_query)
+        nature_base_objects = get_nature(*inputs_query)
 
         # create layers for buildings and roads
+        inputs_base = {
+            "units": project_units,
+            "latitude": coords[0],
+            "longitude": coords[1],
+            "trueNorth": proj_info["angle_rad"],
+            "sourceData": OSM_COPYRIGHT,
+            "sourceUrl": OSM_URL,
+        }
         building_layer = Collection(
             elements=building_base_objects,
-            units=project_units,
-            latitude=coords[0],
-            longitude=coords[1],
-            trueNorth=angle_rad,
             name="Context: Buildings",
             collectionType="BuildingsMeshesLayer",
-            sourceData=OSM_COPYRIGHT,
-            sourceUrl=OSM_URL,
+            **inputs_base,
         )
         roads_mesh_layer = Collection(
             elements=roads_meshes,
-            units=project_units,
-            latitude=coords[0],
-            longitude=coords[1],
-            trueNorth=angle_rad,
             name="Context: Roads (Meshes)",
             collectionType="RoadMeshesLayer",
-            sourceData=OSM_COPYRIGHT,
-            sourceUrl=OSM_URL,
+            **inputs_base,
         )
         nature_layer = Collection(
             elements=nature_base_objects,
-            units=project_units,
-            latitude=coords[0],
-            longitude=coords[1],
-            trueNorth=angle_rad,
             name="Context: Nature",
             collectionType="NatureMeshesLayer",
-            sourceData=OSM_COPYRIGHT,
-            sourceUrl=OSM_URL,
+            **inputs_base,
         )
 
         # add layers to a commit Collection object
@@ -137,14 +106,9 @@ def automate_function(
                 roads_mesh_layer,
                 nature_layer,
             ],
-            units=project_units,
-            latitude=coords[0],
-            longitude=coords[1],
-            trueNorth=angle_rad,
             name="Context",
             collectionType="ContextLayer",
-            sourceData=OSM_COPYRIGHT,
-            sourceUrl=OSM_URL,
+            **inputs_base,
         )
 
         # create a commit
@@ -156,41 +120,23 @@ def automate_function(
             RESULT_BRANCH,
             "Context from Automate",
         )
+        # set Automate context view
         automate_context.set_context_view(
             [f"{new_model_id}@{new_version_id}"],
             include_source_model_version=True,
         )
 
+        # create and add a basemap png file (if toggled)
         if function_inputs.generate_image is True:
-            # create and add a basemap png file
             path = create_image_from_bbox(
-                coords[0],
-                coords[1],
-                function_inputs.radius_in_meters,
+                coords,
+                function_inputs.radius_meters,
             )
             automate_context.store_file_result(path)
 
         automate_context.mark_run_success("Created 3D context")
     except Exception as ex:
         automate_context.mark_run_failed(f"Failed to create 3d context cause: {ex}")
-
-
-def automate_function_without_inputs(
-    automate_context: AutomationContext,
-) -> None:
-    """A function example without inputs.
-
-    If your function does not need any input variables,
-     besides what the automation context provides,
-     the inputs argument can be omitted.
-
-    Args:
-        automate_context: A context helper object, that carries relevant information
-            about the runtime context of this function.
-            It gives access to the Speckle project data, that triggered this run.
-            It also has conveniece methods attach result data to the Speckle model.
-    """
-    pass
 
 
 # make sure to call the function with the executor

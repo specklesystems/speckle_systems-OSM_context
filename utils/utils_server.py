@@ -1,4 +1,5 @@
 from gql import gql
+import numpy as np
 from speckle_automate import AutomationContext
 from specklepy.logging.exceptions import SpeckleException, SpeckleInvalidUnitException
 from specklepy.objects.units import Units, get_units_from_string
@@ -83,7 +84,18 @@ def query_version_info(automate_context, project) -> dict:
         proj_info = base["info"]
         if not proj_info.speckle_type.endswith("Revit.ProjectInfo"):
             raise SpeckleException("Not a valid 'Revit.ProjectInfo' provided")
-    return proj_info
+
+    # parse data
+    coords = [np.rad2deg(proj_info[key]) for key in ["latitude", "longitude"]]
+    try:
+        angle_rad = proj_info["locations"][0]["trueNorth"]
+    except Exception:  # TypeError or KeyError or IndexError:
+        angle_rad = 0
+
+    # get units conversion factor
+    project_units = query_units_info(automate_context, project)
+
+    return {"coords": coords, "angle_rad": angle_rad, "project_units": project_units}
 
 
 def query_units_info(automate_context, project) -> Units:

@@ -1,3 +1,4 @@
+from typing import Tuple
 import requests
 from specklepy.objects import Base
 from specklepy.objects.geometry import Mesh
@@ -24,8 +25,29 @@ from utils.utils_pyproj import (
 )
 
 
-def get_base_plane(lat: float, lon: float, r: float, units: Units) -> Base:
+def get_features_from_osm_server(
+    keyword: str, min_lat_lon: tuple[float], max_lat_lon: tuple[float]
+) -> list[dict]:
+    """Get OSM features via Overpass API."""
+    overpass_url = "http://overpass-api.de/api/interpreter"
+    overpass_query = f"""[out:json];
+    (node["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
+    way["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
+    relation["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
+    );out body;>;out skel qt;"""
+
+    response = requests.get(overpass_url, params={"data": overpass_query})
+    data = response.json()
+    features = data["elements"]
+
+    return features
+
+
+def get_base_plane(
+    coords: tuple[float, float], r: float, angle_rad: float, units: Units
+) -> Base:
     """Get a square base plane."""
+    lat, lon = coords
     scale_factor = get_scale_factor_to_meters(units)
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
     projected_crs = create_crs(lat, lon)
@@ -65,30 +87,13 @@ def get_base_plane(lat: float, lon: float, r: float, units: Units) -> Base:
     return base_obj
 
 
-def get_features_from_osm_server(
-    keyword: str, min_lat_lon: tuple[float], max_lat_lon: tuple[float]
-) -> list[dict]:
-    """Get OSM features via Overpass API."""
-    overpass_url = "http://overpass-api.de/api/interpreter"
-    overpass_query = f"""[out:json];
-    (node["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
-    way["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
-    relation["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
-    );out body;>;out skel qt;"""
-
-    response = requests.get(overpass_url, params={"data": overpass_query})
-    data = response.json()
-    features = data["elements"]
-
-    return features
-
-
 def get_buildings(
-    lat: float, lon: float, r: float, angle_rad: float, units: Units
+    coords: tuple[float, float], r: float, angle_rad: float, units: Units
 ) -> list[Base]:
     """Get a list of 3d Meshes of buildings by lat&lon (degrees) and radius (meters)."""
     # https://towardsdatascience.com/loading-data-from-openstreetmap-with-python-and-the-overpass-api-513882a27fd0
 
+    lat, lon = coords
     scale_factor = get_scale_factor_to_meters(units)
 
     keyword = "building"
@@ -378,9 +383,11 @@ def get_buildings(
 
 
 def get_roads(
-    lat: float, lon: float, r: float, angle_rad: float, units: Units
+    coords: tuple[float, float], r: float, angle_rad: float, units: Units
 ) -> tuple[list[Base], list[Base]]:
     """Get a list of Polylines and Meshes of roads by lat&lon (degrees) and radius (meters)."""
+
+    lat, lon = coords
     scale_factor = get_scale_factor_to_meters(units)
     keyword = "highway"
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, r)
@@ -520,10 +527,12 @@ def get_roads(
 
 
 def get_nature(
-    lat: float, lon: float, r: float, angle_rad: float, units: Units
+    coords: tuple[float, float], r: float, angle_rad: float, units: Units
 ) -> list[Base]:
     """Get a list of 3d Meshes of buildings by lat&lon (degrees) and radius (meters)."""
     # https://towardsdatascience.com/loading-data-from-openstreetmap-with-python-and-the-overpass-api-513882a27fd0
+
+    lat, lon = coords
     scale_factor = get_scale_factor_to_meters(units)
     features = []
     all_keywords = ["landuse", "natural", "leisure"]

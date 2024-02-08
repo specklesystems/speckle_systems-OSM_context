@@ -369,8 +369,9 @@ def add_copyright_text(color_rows: list[list[int]], size: int) -> list[list[floa
     return color_rows
 
 
-def create_image_from_bbox(lat: float, lon: float, radius: float | int) -> str:
+def create_image_from_bbox(coords: tuple[float, float], radius: float | int) -> str:
     """Get OSM tile image around selected location and save it to a PNG file."""
+    lat, lon = coords
     temp_folder = "automate_tiles_" + str(datetime.now().timestamp())[:6]
     temp_folder_path = os.path.join(os.path.abspath(tempfile.gettempdir()), temp_folder)
     folder_exist = os.path.exists(temp_folder_path)

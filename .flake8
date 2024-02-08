@@ -1,3 +1,4 @@
 [flake8]
 max-line-length = 88
-extend-ignore = E203, E704, WPS305, WPS432, Q000
+# E203, E704, f-string, magic number, double quotes
+extend-ignore =  WPS305, WPS432, Q000 
