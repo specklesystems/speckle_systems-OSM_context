@@ -11,7 +11,7 @@ from utils.utils_png import (
     create_image_from_bbox,
     get_colors_of_points_from_tiles,
     get_image_pixel_color,
-    writePng,
+    write_png,
 )
 
 
@@ -20,20 +20,20 @@ def temp_folder_path() -> str:
     """Create a folder in TEMP to write tests outputs."""
     folder_name = "png_testing_" + str(datetime.now().timestamp())[:6]
     path = os.path.join(os.path.abspath(tempfile.gettempdir()), folder_name)
-    folderExist = os.path.exists(path)
-    if not folderExist:
+    folder_exist = os.path.exists(path)
+    if not folder_exist:
         os.makedirs(path)
     return path
 
 
-def test_writePng(temp_folder_path):
-    """Unit test for writePng."""
+def test_write_png(temp_folder_path):
+    """Unit test for write_png."""
     color_rows = [
         [0, 0, 0, 255, 255, 255],
         [155, 155, 155, 112, 112, 112],
     ]  # [row1], [row2] etc.
     file_path = os.path.join(temp_folder_path, "image.png")
-    writePng(color_rows, file_path)
+    write_png(color_rows, file_path)
     assert os.path.exists(file_path)
 
 

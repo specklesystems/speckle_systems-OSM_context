@@ -8,6 +8,10 @@
   "python.defaultInterpreterPath": ".venv/bin/python",
   "mypy.enabled": true,
   "python.testing.pytestArgs": [
+    "-v",
+    "--cov=myproj/",
+    "--cov-report=xml",
+    "--pdb",
     "tests"
   ],
   "python.testing.unittestEnabled": false,

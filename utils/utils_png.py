@@ -19,7 +19,7 @@ PATH_COPYRIGHT = os.path.join(assets_folder_path, "copyright.PNG")
 PATH_NUMBERS = os.path.join(assets_folder_path, "numbers.PNG")
 
 
-def writePng(color_rows: list[list[float]], path: str) -> None:
+def write_png(color_rows: list[list[int]], path: str) -> None:
     """Writes PNG file from rows with color tuples."""
     if not path.endswith(".png"):
         return
@@ -93,7 +93,7 @@ def get_colors_of_points_from_tiles(
                             r.raw.decode_content = True
                             shutil.copyfileobj(r.raw, f)
                     else:
-                        raise Exception(
+                        raise ConnectionError(
                             f"Request not successful: Response code {r.status_code}"
                         )
             # find pixel index in the image
@@ -373,8 +373,8 @@ def create_image_from_bbox(lat: float, lon: float, radius: float | int) -> str:
     """Get OSM tile image around selected location and save it to a PNG file."""
     temp_folder = "automate_tiles_" + str(datetime.now().timestamp())[:6]
     temp_folder_path = os.path.join(os.path.abspath(tempfile.gettempdir()), temp_folder)
-    folderExist = os.path.exists(temp_folder_path)
-    if not folderExist:
+    folder_exist = os.path.exists(temp_folder_path)
+    if not folder_exist:
         os.makedirs(temp_folder_path)
 
     min_lat_lon, max_lat_lon = get_degrees_bbox_from_lat_lon_rad(lat, lon, radius)
@@ -387,6 +387,6 @@ def create_image_from_bbox(lat: float, lon: float, radius: float | int) -> str:
     )
 
     file_name = os.path.join(temp_folder_path, png_name)
-    writePng(color_rows, file_name)
+    write_png(color_rows, file_name)
 
     return file_name
