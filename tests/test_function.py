@@ -6,6 +6,7 @@ import string
 import pytest
 from gql import gql
 from speckle_automate import (
+    AutomationContext,
     AutomationRunData,
     AutomationStatus,
     run_function,
@@ -142,17 +143,20 @@ def automation_run_data(
         automation_revision_id=automation_revision_id,
         automation_run_id=automation_run_id,
         function_id=function_id,
-        function_revision=function_revision,
+        function_name=crypto_random_string(10),
+        function_logo=None,
     )
 
 
 def test_function_run(automation_run_data: AutomationRunData, speckle_token: str):
     """Run an integration test for the automate function."""
+    automation_context = AutomationContext.initialize(
+        automation_run_data, speckle_token
+    )
     automate_sdk = run_function(
+        automation_context,
         automate_function,
-        automation_run_data,
-        speckle_token,
-        FunctionInputs(forbidden_speckle_type="Base"),
+        FunctionInputs(radius_meters=50, generate_image=False),
     )
 
     assert automate_sdk.run_status == AutomationStatus.FAILED

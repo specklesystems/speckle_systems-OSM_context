@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Example function for Speckle Automate using specklepy"
 authors = ["Gergő Jedlicska <gergo@jedlicska.com>"]
 readme = "README.md"
-packages = [{include = "src/speckle_automate_py"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -27,12 +26,15 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 select = [
-  "E",   # pycodestyle
-  "F",   # pyflakes
-  "UP",  # pyupgrade
-  "D",   # pydocstyle
-  "I",   # isort
+  "E",  # pycodestyle
+  "F",  # pyflakes
+  "UP", # pyupgrade
+  "D",  # pydocstyle
+  "I",  # isort
 ]
 
 [tool.ruff.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
