@@ -174,7 +174,7 @@ def test_create_image_from_bbox():
     lat = 59.92747305777346
     lon = 10.755946479246836
     radius = 40
-    result = create_image_from_bbox(lat, lon, radius)
+    result = create_image_from_bbox((lat, lon), radius)
 
     custom_temp_folder = "automate_tiles_" + str(datetime.now().timestamp())[:6]
     custom_temp_folder_path = os.path.join(

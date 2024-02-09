@@ -27,8 +27,9 @@ def lon():
 def test_get_base_plane(lat, lon):
     """Unit test for get_base_plane."""
     radius = 50
+    angle_rad = 0
     units = Units.m
-    result = get_base_plane(lat, lon, radius, units)
+    result = get_base_plane((lat, lon), radius, angle_rad, units)
     assert isinstance(result, Base)
     assert isinstance(result.displayValue, list)
     assert isinstance(result.displayValue[0], Mesh)
@@ -55,7 +56,7 @@ def test_get_buildings(lat, lon):
     radius = 100
     angle_rad = 0
     units = Units.m
-    result = get_buildings(lat, lon, radius, angle_rad, units)
+    result = get_buildings((lat, lon), radius, angle_rad, units)
     assert isinstance(result, list)
     assert len(result) > 0
     assert isinstance(result[0], Base)
@@ -69,7 +70,7 @@ def test_get_roads(lat, lon):
     radius = 100
     angle_rad = 0
     units = Units.m
-    result = get_roads(lat, lon, radius, angle_rad, units)
+    result = get_roads((lat, lon), radius, angle_rad, units)
     assert isinstance(result, tuple)
 
     assert isinstance(result[0], list)
@@ -90,7 +91,7 @@ def test_get_nature(lat, lon):
     radius = 100
     angle_rad = 0
     units = Units.m
-    result = get_nature(lat, lon, radius, angle_rad, units)
+    result = get_nature((lat, lon), radius, angle_rad, units)
     assert isinstance(result, list)
     assert len(result) > 0
     assert isinstance(result[0], Base)

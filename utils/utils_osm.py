@@ -5,14 +5,16 @@ from specklepy.objects.geometry import Mesh
 from specklepy.objects.units import Units, get_scale_factor_to_meters
 
 from utils.utils_geometry import (
-    create_flat_mesh,
-    extrude_building,
     generate_points_inside_polygon,
-    generate_tree,
     join_roads,
-    road_buffer,
     rotate_pt,
     split_ways_by_intersection,
+)
+from utils.utils_context_3d_objects import (
+    create_flat_mesh,
+    extrude_building,
+    generate_tree,
+    road_buffer,
 )
 from utils.utils_other import (
     COLOR_BASE,
