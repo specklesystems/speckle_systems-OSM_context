@@ -1,6 +1,11 @@
 """Unit tests for utils_geometry."""
 
 import math
+
+import pytest
+from specklepy.objects import Base
+from specklepy.objects.geometry import Mesh, Point, Polyline
+
 from utils.utils_geometry import (
     create_side_face,
     fix_polygon_orientation,
@@ -10,10 +15,6 @@ from utils.utils_geometry import (
     split_ways_by_intersection,
     to_triangles,
 )
-
-import pytest
-from specklepy.objects import Base
-from specklepy.objects.geometry import Mesh, Point, Polyline
 
 
 @pytest.fixture()

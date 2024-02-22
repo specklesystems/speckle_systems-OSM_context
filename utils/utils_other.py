@@ -7,7 +7,7 @@ COLOR_BLD = (255 << 24) + (230 << 16) + (230 << 8) + 230  # argb# noqa: E731
 COLOR_GREEN = (255 << 24) + (25 << 16) + (50 << 8) + 13  # argb# noqa: E731
 COLOR_TREE_BASE = (255 << 24) + (18 << 16) + (30 << 8) + 8  # argb# noqa: E731
 COLOR_TREE_BASE_BROWN = (255 << 24) + (15 << 16) + (10 << 8) + 2  # argb# noqa: E731
-COLOR_BASE = color = (255 << 24) + (80 << 16) + (80 << 8) + 80# noqa: E731
+COLOR_BASE = color = (255 << 24) + (80 << 16) + (80 << 8) + 80  # noqa: E731
 COLOR_VISIBILITY = (255 << 24) + (255 << 16) + (10 << 8) + 10  # argb# noqa: E731
 OSM_URL = "https://www.openstreetmap.org/"
 OSM_COPYRIGHT = "© OpenStreetMap"

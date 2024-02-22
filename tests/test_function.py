@@ -1,4 +1,5 @@
 """Run integration tests with a speckle server."""
+
 import os
 import secrets
 import string
@@ -156,7 +157,9 @@ def test_function_run(automation_run_data: AutomationRunData, speckle_token: str
     automate_sdk = run_function(
         automation_context,
         automate_function,
-        FunctionInputs(radius_meters=50, generate_image=False),
+        automation_run_data,
+        speckle_token,
+        FunctionInputs(radius_meters=50, generate_image=True),
     )
 
     assert automate_sdk.run_status == AutomationStatus.FAILED

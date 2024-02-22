@@ -1,5 +1,9 @@
 """Unit tests for utils_geometry."""
 
+import pytest
+from specklepy.objects import Base
+from specklepy.objects.geometry import Mesh, Point, Polyline
+
 from utils.utils_context_3d_objects import (
     create_flat_mesh,
     extrude_building,
@@ -8,10 +12,6 @@ from utils.utils_context_3d_objects import (
     generate_tree,
     road_buffer,
 )
-
-import pytest
-from specklepy.objects import Base
-from specklepy.objects.geometry import Mesh, Point, Polyline
 
 
 @pytest.fixture()

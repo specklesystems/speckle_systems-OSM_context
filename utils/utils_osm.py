@@ -17,10 +17,7 @@ from utils.utils_geometry import (
     rotate_pt,
     split_ways_by_intersection,
 )
-from utils.utils_other import (
-    COLOR_BASE,
-    cut_off_non_numeric_string,
-)
+from utils.utils_other import COLOR_BASE, cut_off_non_numeric_string
 from utils.utils_pyproj import (
     create_crs,
     get_degrees_bbox_from_lat_lon_rad,

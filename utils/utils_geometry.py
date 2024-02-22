@@ -6,12 +6,8 @@ import random
 import geopandas as gpd
 import numpy as np
 from geovoronoi import voronoi_regions_from_coords
-from shapely import (
-    Point as shapely_Point,
-)
-from shapely import (
-    Polygon as shapely_Polygon,
-)
+from shapely import Point as shapely_Point
+from shapely import Polygon as shapely_Polygon
 from shapely.affinity import affine_transform
 from shapely.ops import triangulate
 from specklepy.objects.geometry import Point, Polyline
@@ -250,7 +246,8 @@ def rotate_pt(coord: dict, angle_rad: float | int) -> dict:
 
 
 def split_ways_by_intersection(
-    ways: list[dict], tags: list[dict]
+    ways: list[dict],
+    tags: list[dict],
 ) -> tuple[list[dict], list[dict]]:
     """Separate ways and tags into different lists if they self-intersect."""
     splitWays = []

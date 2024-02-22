@@ -1,5 +1,5 @@
-from gql import gql
 import numpy as np
+from gql import gql
 from speckle_automate import AutomationContext
 from specklepy.logging.exceptions import SpeckleException, SpeckleInvalidUnitException
 from specklepy.objects.units import Units, get_units_from_string

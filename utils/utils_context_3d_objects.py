@@ -4,11 +4,7 @@ import json
 import math
 import random
 
-from shapely import (
-    LineString,
-    buffer,
-    to_geojson,
-)
+from shapely import LineString, buffer, to_geojson
 from specklepy.objects import Base
 from specklepy.objects.geometry import Mesh, Polyline
 
@@ -43,7 +39,9 @@ def create_flat_mesh(
     # bottom
     bottom_vert_indices = list(range(len(coords)))
     bottom_vertices = [(c["x"], c["y"]) for c in coords]
-    bottom_vert_indices, _ = fix_polygon_orientation(bottom_vertices, bottom_vert_indices)
+    bottom_vert_indices, _ = fix_polygon_orientation(
+        bottom_vertices, bottom_vert_indices
+    )
     bottom_vert_indices.reverse()
 
     for c in coords:
