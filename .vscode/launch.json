@@ -5,6 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Tests",
+      "type": "debugpy",
+      "module": "pytest",
+      "request": "launch",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": false,
+      "args": ["tests/test_function.py"]
+    },
+    {
       "command": "mypy .",
       "name": "mypy tests",
       "request": "launch",

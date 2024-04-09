@@ -1,3 +1,5 @@
+"""Reading and writing PNG files."""
+
 import math
 import os
 import shutil

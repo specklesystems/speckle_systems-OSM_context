@@ -133,7 +133,7 @@ def automation_run_data(
 
     automation_run_id = crypto_random_string(10)
     function_id = crypto_random_string(10)
-    function_revision = crypto_random_string(10)
+    # function_revision = crypto_random_string(10)
     return AutomationRunData(
         project_id=project_id,
         model_id=model_id,
@@ -162,4 +162,4 @@ def test_function_run(automation_run_data: AutomationRunData, speckle_token: str
         FunctionInputs(radius_meters=50, generate_image=True),
     )
 
-    assert automate_sdk.run_status == AutomationStatus.FAILED
+    assert automate_sdk.run_status == AutomationStatus.SUCCEEDED

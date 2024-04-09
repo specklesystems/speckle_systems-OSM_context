@@ -1,4 +1,5 @@
 """Utils for the Automate function."""
+
 from copy import copy
 
 RESULT_BRANCH = "OSM context"

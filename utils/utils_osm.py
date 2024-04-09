@@ -1,3 +1,5 @@
+"""Getting OSM data."""
+
 from typing import Tuple
 
 import requests
@@ -23,24 +25,6 @@ from utils.utils_pyproj import (
     get_degrees_bbox_from_lat_lon_rad,
     reproject_to_crs,
 )
-
-
-def get_features_from_osm_server(
-    keyword: str, min_lat_lon: tuple[float], max_lat_lon: tuple[float]
-) -> list[dict]:
-    """Get OSM features via Overpass API."""
-    overpass_url = "http://overpass-api.de/api/interpreter"
-    overpass_query = f"""[out:json];
-    (node["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
-    way["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
-    relation["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
-    );out body;>;out skel qt;"""
-
-    response = requests.get(overpass_url, params={"data": overpass_query})
-    data = response.json()
-    features = data["elements"]
-
-    return features
 
 
 def get_base_plane(
@@ -85,6 +69,24 @@ def get_base_plane(
     )
 
     return base_obj
+
+
+def get_features_from_osm_server(
+    keyword: str, min_lat_lon: tuple[float, float], max_lat_lon: tuple[float, float]
+) -> list[dict]:
+    """Get OSM features via Overpass API."""
+    overpass_url = "http://overpass-api.de/api/interpreter"
+    overpass_query = f"""[out:json];
+    (node["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
+    way["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
+    relation["{keyword}"]({min_lat_lon[0]},{min_lat_lon[1]},{max_lat_lon[0]},{max_lat_lon[1]});
+    );out body;>;out skel qt;"""
+
+    response = requests.get(overpass_url, params={"data": overpass_query})
+    data = response.json()
+    features: list[dict] = data["elements"]
+
+    return features
 
 
 def get_buildings(

@@ -1,3 +1,6 @@
+"""Server operations: custom data queries."""
+
+from typing import Optional
 import numpy as np
 from gql import gql
 from speckle_automate import AutomationContext
@@ -5,49 +8,36 @@ from specklepy.logging.exceptions import SpeckleException, SpeckleInvalidUnitExc
 from specklepy.objects.units import Units, get_units_from_string
 
 
-def get_commit_data(automate_context: AutomationContext) -> dict:
+def get_commit_data(
+    automate_context: AutomationContext, ref_obj: str | None = None
+) -> dict:
     """Get Revit project info from commit."""
-    automation_run_data = automate_context.automation_run_data
-    # get referencedObject
-    query = gql(
-        """
-        query Stream($project_id: String!, $model_id: String!, $version_id: String!) {
-            project(id:$project_id) {
-                model(id: $model_id) {
-                    version(id: $version_id) {
-                        referencedObject
+    if ref_obj is None:
+        automation_run_data = automate_context.automation_run_data
+        # get referencedObject
+        query = gql(
+            """
+            query Stream($project_id: String!, $model_id: String!, $version_id: String!) {
+                project(id:$project_id) {
+                    model(id: $model_id) {
+                        version(id: $version_id) {
+                            referencedObject
+                        }
                     }
                 }
             }
-        }
-    """
-    )
-    client = automate_context.speckle_client
-    params = {
-        "project_id": automation_run_data.project_id,
-        "model_id": automation_run_data.model_id,
-        "version_id": automation_run_data.version_id,
-    }
-    project = client.httpclient.execute(query, params)
-    ref_obj = project["project"]["model"]["version"]["referencedObject"]
-    # get Project data
-    query = gql(
         """
-        query Stream($project_id: String!, $ref_id: String!) {
-            stream(id: $project_id){
-                object(id: $ref_id){
-                data
-                }
-            }
+        )
+        client = automate_context.speckle_client
+        params = {
+            "project_id": automation_run_data.project_id,
+            "model_id": automation_run_data.model_id,
+            "version_id": automation_run_data.version_id,
         }
-    """
-    )
-    params = {
-        "project_id": automation_run_data.project_id,
-        "ref_id": ref_obj,
-    }
-    project = client.httpclient.execute(query, params)
-    return project["stream"]["object"]["data"]
+        ref_obj_query: dict = client.httpclient.execute(query, params)
+        ref_obj = ref_obj_query["project"]["model"]["version"]["referencedObject"]
+
+    return get_ref_obj_data(automate_context, ref_obj)
 
 
 def get_ref_obj_data(automate_context: AutomationContext, ref_obj: str) -> dict:
@@ -70,11 +60,19 @@ def get_ref_obj_data(automate_context: AutomationContext, ref_obj: str) -> dict:
         "project_id": automation_run_data.project_id,
         "ref_id": ref_obj,
     }
-    ref_obj = client.httpclient.execute(query, params)
-    return ref_obj["stream"]["object"]["data"]
+    commit_data_query: dict = client.httpclient.execute(query, params)
+    if (
+        not isinstance(commit_data_query, dict)
+        or commit_data_query["stream"]["object"] is None
+    ):
+        raise SpeckleException(
+            f"Reference object {ref_obj} not found in project {automation_run_data.project_id}"
+        )
+    commit_data: dict = commit_data_query["stream"]["object"]["data"]
+    return commit_data
 
 
-def query_version_info(automate_context, project) -> dict:
+def query_version_info(automate_context: AutomationContext, project: dict) -> dict:
     """."""
     try:
         proj_info = project["info"]
@@ -90,7 +88,7 @@ def query_version_info(automate_context, project) -> dict:
     try:
         angle_rad = proj_info["locations"][0]["trueNorth"]
     except Exception:  # TypeError or KeyError or IndexError:
-        angle_rad = 0
+        angle_rad = 0.0
 
     # get units conversion factor
     project_units = query_units_info(automate_context, project)
@@ -98,7 +96,7 @@ def query_version_info(automate_context, project) -> dict:
     return {"coords": coords, "angle_rad": angle_rad, "project_units": project_units}
 
 
-def query_units_info(automate_context, project) -> Units:
+def query_units_info(automate_context, project: dict) -> Units:
     """Get Units of Revit model in the commit."""
     try:
         display_object_units = get_units_from_first_display_value(

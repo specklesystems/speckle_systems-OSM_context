@@ -250,30 +250,30 @@ def split_ways_by_intersection(
     tags: list[dict],
 ) -> tuple[list[dict], list[dict]]:
     """Separate ways and tags into different lists if they self-intersect."""
-    splitWays = []
-    splitTags = []
+    split_ways = []
+    split_tags = []
 
     for i, w in enumerate(ways):
         ids = w["nodes"]
         try:
             if tags[i]["area"] == "yes":
-                splitWays.append(w)
-                splitTags.append(tags[i])
+                split_ways.append(w)
+                split_tags.append(tags[i])
                 continue  # don't look for intersections
         except KeyError:
             pass
 
         if len(ids) == 0 or len(list(set(ids))) < len(ids):  # if there are repetitions
-            wList = split_list_by_repeated_elements(ids, [])
-            for item in wList:
+            nodes_in_section = split_list_by_repeated_elements(ids, [])
+            for item in nodes_in_section:
                 x: dict = {"nodes": item}
-                splitWays.append(x)
-                splitTags.append(tags[i])
+                split_ways.append(x)
+                split_tags.append(tags[i])
         else:
-            splitWays.append(w)
-            splitTags.append(tags[i])
+            split_ways.append(w)
+            split_tags.append(tags[i])
 
-    return splitWays, splitTags
+    return split_ways, split_tags
 
 
 def join_roads(coords: list[dict], closed: bool) -> Polyline:

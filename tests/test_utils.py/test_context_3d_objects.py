@@ -85,17 +85,6 @@ def test_extrude_building_with_inner(coords, coords_inner):
     assert len(result.vertices) >= 3 * (6 * (len(coords) + len(coords_inner)))
 
 
-def test_road_buffer():
-    """Unit test for road_buffer."""
-    poly = Polyline.from_points(
-        [Point(x=0, y=0, z=0), Point(x=5, y=0, z=0), Point(x=15, y=5, z=0)]
-    )
-    value = 2.5
-    elevation = 0.02
-    result = road_buffer(poly, value, elevation)
-    assert isinstance(result, Base)
-
-
 def test_generate_tree():
     """Unit test for generate_tree."""
     tree = {"id": "234"}
@@ -107,3 +96,14 @@ def test_generate_tree():
     assert len(result) == 3
     for item in result:
         assert isinstance(item, Mesh)
+
+
+def test_road_buffer():
+    """Unit test for road_buffer."""
+    poly = Polyline.from_points(
+        [Point(x=0, y=0, z=0), Point(x=5, y=0, z=0), Point(x=15, y=5, z=0)]
+    )
+    value = 2.5
+    elevation = 0.02
+    result = road_buffer(poly, value, elevation)
+    assert isinstance(result, Base)
