@@ -107,16 +107,11 @@ def automation_run_data(
     test_object: Base, test_client: SpeckleClient, speckle_server_url: str
 ) -> AutomationRunData:
     """Set up an automation context for testing."""
-    project_id = test_client.stream.create("Automate function e2e test")
+    project_id = "4ea6a03993"
     branch_name = "main"
 
-    model = test_client.branch.get(project_id, branch_name, commits_limit=1)
-    model_id: str = model.id
-
-    root_obj_id = operations.send(
-        test_object, [ServerTransport(project_id, test_client)]
-    )
-    version_id = test_client.commit.create(project_id, root_obj_id)
+    model_id: str = "9ae1ffbcf8"
+    version_id: str = "4110e33baa"
 
     automation_name = crypto_random_string(10)
     automation_id = crypto_random_string(10)
@@ -157,8 +152,8 @@ def test_function_run(automation_run_data: AutomationRunData, speckle_token: str
     automate_sdk = run_function(
         automation_context,
         automate_function,
-        automation_run_data,
-        speckle_token,
+        # automation_run_data,
+        # speckle_token,
         FunctionInputs(radius_meters=50, generate_image=True),
     )
 

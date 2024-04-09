@@ -112,7 +112,7 @@ def automation_run_data(
     branch_name = "main"
 
     model_id: str = "9ae1ffbcf8"
-    version_id = "4110e33baa"
+    version_id: str = "4110e33baa"
 
     automation_name = crypto_random_string(10)
     automation_id = crypto_random_string(10)

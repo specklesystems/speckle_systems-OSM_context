@@ -76,15 +76,21 @@ def query_version_info(automate_context: AutomationContext, project: dict) -> di
     """."""
     try:
         proj_info = project["info"]
-    except KeyError as e:
-        print(e)
+    except KeyError:
         base = automate_context.receive_version()
-        proj_info = base["info"]
         if not proj_info.speckle_type.endswith("Revit.ProjectInfo"):
             raise SpeckleException("Not a valid 'Revit.ProjectInfo' provided")
+        proj_info = base["info"]
 
-    # parse data
-    coords = [np.rad2deg(proj_info[key]) for key in ["latitude", "longitude"]]
+    # parse data for lat/lon
+    try:
+        proj_info = project["info"]
+        coords = [np.rad2deg(proj_info[key]) for key in ["latitude", "longitude"]]
+    except KeyError:
+        raise SpeckleException(
+            "latitude/longitude values not found in Revit.ProjectInfo"
+        )
+    # parse data for TrueNorth angle
     try:
         angle_rad = proj_info["locations"][0]["trueNorth"]
     except Exception:  # TypeError or KeyError or IndexError:
