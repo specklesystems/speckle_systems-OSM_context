@@ -58,19 +58,22 @@ def automate_function(
     """
     # the context provides a conveniet way, to receive the triggering version
     try:
-        project = get_commit_data(automate_context)
-        projInfo = query_version_info(automate_context, project)
-        lon = np.rad2deg(projInfo["longitude"])
-        lat = np.rad2deg(projInfo["latitude"])
+        # project = get_commit_data(automate_context)
+        # projInfo = query_version_info(automate_context, project)
+        # lon = np.rad2deg(projInfo["longitude"])
+        # lat = np.rad2deg(projInfo["latitude"])
+        lon = 26.71955
+        lat = 58.37586
         try:
-            angle_rad = projInfo["locations"][0]["trueNorth"]
+            angle_rad = 0  # projInfo["locations"][0]["trueNorth"]
         except:
             angle_rad = 0
 
         # get units conversion factor
-        project_units = query_units_info(automate_context, project)
+        project_units = Units.m  # query_units_info(automate_context, project)
 
         # get OSM buildings and roads in given area
+        r"""
         base_plane = get_base_plane(
             lat, lon, function_inputs.radius_in_meters, project_units
         )
@@ -80,11 +83,13 @@ def automate_function(
         roads_lines, roads_meshes = get_roads(
             lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
         )
+        """
         nature_base_objects = get_nature(
             lat, lon, function_inputs.radius_in_meters, angle_rad, project_units
         )
 
         # create layers for buildings and roads
+        r"""
         building_layer = Collection(
             elements=building_base_objects,
             units=project_units,
@@ -96,7 +101,6 @@ def automate_function(
             sourceData="© OpenStreetMap",
             sourceUrl="https://www.openstreetmap.org/",
         )
-        r"""
         roads_line_layer = Collection(
             elements=roads_lines,
             units="m",
@@ -108,7 +112,6 @@ def automate_function(
             sourceData="© OpenStreetMap",
             sourceUrl="https://www.openstreetmap.org/",
         )
-        """
         roads_mesh_layer = Collection(
             elements=roads_meshes,
             units=project_units,
@@ -120,6 +123,7 @@ def automate_function(
             sourceData="© OpenStreetMap",
             sourceUrl="https://www.openstreetmap.org/",
         )
+        """
         nature_layer = Collection(
             elements=nature_base_objects,
             units=project_units,
@@ -134,7 +138,8 @@ def automate_function(
 
         # add layers to a commit Collection object
         commit_obj = Collection(
-            elements=[base_plane, building_layer, roads_mesh_layer, nature_layer],
+            # elements=[base_plane, building_layer, roads_mesh_layer, nature_layer],
+            elements=[nature_layer],
             units=project_units,
             latitude=lat,
             longitude=lon,
@@ -191,9 +196,9 @@ from specklepy.api.models import Branch
 from pydantic import BaseModel, ConfigDict, Field
 from stringcase import camelcase
 
-project_id = "23c31c18f5"  # "aeb6aa8a6c"
-model_id = "3080ebb3c8"
-radius_in_meters = 200
+project_id = "344f803f81"  # "aeb6aa8a6c"
+model_id = "10779be5a2"
+radius_in_meters = 500
 generate_image = False
 
 # get client

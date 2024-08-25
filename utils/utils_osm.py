@@ -370,7 +370,7 @@ def get_buildings(
 
 def get_roads(
     lat: float, lon: float, r: float, angle_rad: float, units: float
-) -> tuple[list[Base]]:
+) -> tuple[list[Base], list[Base]]:
     """Get a list of Polylines and Meshes of roads by lat&lon (degrees) and radius (meters)."""
     scale_factor = get_scale_factor_to_meters(units)
     keyword = "highway"
